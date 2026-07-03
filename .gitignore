@@ -1,6 +1,8 @@
 # build artifacts
 .build/
 rsync-builder.app/
+dist/
+*.dmg
 
 # swiftpm user data
 .swiftpm/

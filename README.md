@@ -1,9 +1,29 @@
-# rsync builder
+<p align="center">
+  <img src="Assets/AppIcon.png" alt="rsync builder app icon" width="128">
+</p>
 
-A small native macOS **menu bar** app (SwiftUI) that helps you assemble `rsync`
-commands for moving files between your Mac and a server. It lives in the menu
-bar (no Dock icon); click its icon to open a compact panel that shows the live
-command, copies it to the clipboard, or runs it in a terminal.
+<h1 align="center">rsync builder</h1>
+
+<p align="center">
+  <strong>Language:</strong> EN | <a href="README.ru.md">RU</a>
+</p>
+
+<p align="center">
+  <strong>assemble and run rsync commands from the menu bar</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/boundlessend/rsync-builder/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/boundlessend/rsync-builder/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/boundlessend/rsync-builder/actions/workflows/release.yml"><img alt="Release DMG" src="https://github.com/boundlessend/rsync-builder/actions/workflows/release.yml/badge.svg"></a>
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-26%2B-111827">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9-f05138">
+  <img alt="license" src="https://img.shields.io/badge/license-BSD--3--Clause-2563eb">
+</p>
+
+`rsync builder` is a small native macOS menu bar app that helps you assemble `rsync`
+commands for moving files between your Mac and a server. It lives in the menu bar
+(no Dock icon); click its icon to open a compact panel that shows the live command,
+copies it to the clipboard, or runs it in a terminal.
 
 ## Features
 
@@ -16,18 +36,21 @@ command, copies it to the clipboard, or runs it in a terminal.
 - Copy to clipboard, or run in a separate terminal window (SSH password prompts work there)
 - Interface language (English / Русский) switchable in Settings
 
-## Build & run
+## Install
+
+Download `rsync-builder.dmg` from the [latest release](https://github.com/boundlessend/rsync-builder/releases/latest),
+open it, and drag **rsync builder** into **Applications**. The icon appears in the
+menu bar; open **••• → Quit** to quit, **••• → Settings…** for preferences.
+
+It is not signed or notarized, so on first launch right-click the app and choose
+**Open**, then confirm. Requires macOS 26 or later.
+
+## Build from source
 
 ```sh
 ./build.sh            # release build -> rsync-builder.app
 open rsync-builder.app
 ```
-
-The icon appears in the menu bar. Open **••• → Quit** to quit, **••• → Settings…**
-for preferences.
-
-Requires macOS 26+ (uses native Liquid Glass). No code signing; on first run allow
-it via Gatekeeper.
 
 ## Development (hot reload)
 

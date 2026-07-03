@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    # требует macOS 26 SDK (нативный Liquid Glass)
+    # requires the macOS 26 SDK (native Liquid Glass)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
@@ -18,10 +18,25 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app
       - name: build app bundle
         run: ./build.sh
-      # приложение не подписано и не нотаризовано - Gatekeeper покажет предупреждение при первом запуске
-      - name: zip app
-        run: ditto -c -k --keepParent rsync-builder.app rsync-builder.zip
+      - name: package dmg
+        run: |
+          mkdir -p dist
+          cp -R rsync-builder.app dist/
+          ln -s /Applications dist/Applications
+          hdiutil create -volname "rsync builder" -srcfolder dist -ov -format UDZO rsync-builder.dmg
+      # the app is not signed or notarized - Gatekeeper warns on first launch
       - name: publish github release
         uses: softprops/action-gh-release@v2
         with:
-          files: rsync-builder.zip
+          files: rsync-builder.dmg
+          generate_release_notes: true
+          body: |
+            **rsync builder** is a macOS menu bar app that helps you assemble and run `rsync`
+            commands for moving files between your Mac and a server.
+
+            ### Install
+            1. Open `rsync-builder.dmg` and drag **rsync builder** into **Applications**.
+            2. The app runs in the menu bar (no Dock icon) - click its icon to open the panel.
+            3. It is not signed or notarized, so on first launch right-click the app and choose **Open**, then confirm.
+
+            Requires macOS 26 or later.
