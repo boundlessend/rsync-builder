@@ -9,7 +9,7 @@ enum Lang: String, CaseIterable, Identifiable {
 // все пользовательские строки; выбор языка - в Настройках
 struct L10n {
     let upload, download: String
-    let serverSection, serverProfiles, saveButton, saveHelp, portPlaceholder: String
+    let serverSection, serverProfiles, saveButton, saveHelp, portPlaceholder, portLabel: String
     let pathsSection, sourceLocal, destLocal, destServer, sourceServer: String
     let localPlaceholder, localHelp, browse, browseHelp, localTip: String
     let remotePlaceholder, remoteHelp: String
@@ -31,6 +31,7 @@ struct L10n {
         saveButton: "Save",
         saveHelp: "Save the current server as a profile",
         portPlaceholder: "SSH port",
+        portLabel: "Port",
         pathsSection: "Paths",
         sourceLocal: "Source · local",
         destLocal: "Destination · local",
@@ -77,6 +78,7 @@ struct L10n {
         saveButton: "Сохранить",
         saveHelp: "сохранить текущий сервер как профиль",
         portPlaceholder: "порт SSH",
+        portLabel: "Порт",
         pathsSection: "Пути",
         sourceLocal: "Источник · локально",
         destLocal: "Приём · локально",

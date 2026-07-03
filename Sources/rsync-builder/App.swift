@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var copied = false
     @State private var dropLocal = false
     @State private var startPulse = 0
+    @State private var showExcludes = false
     @StateObject private var terminal = TerminalWindow()
     @FocusState private var focus: Field?
 
@@ -33,6 +34,10 @@ struct ContentView: View {
     private var s: L10n { .of(lang) }
     private var localLabel: String { direction == .upload ? s.sourceLocal : s.destLocal }
     private var remoteLabel: String { direction == .upload ? s.destServer : s.sourceServer }
+
+    private var enabledExcludeCount: Int {
+        excludes.filter { $0.on && !$0.pattern.trimmingCharacters(in: .whitespaces).isEmpty }.count
+    }
 
     // команда полна, только когда заданы сервер и оба пути
     private var isComplete: Bool {
@@ -50,119 +55,147 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            form
-            Divider()
-            commandBar
-        }
-        .frame(minWidth: 540, idealWidth: 640, maxWidth: .infinity,
-               minHeight: 600, idealHeight: 640, maxHeight: .infinity)
-        .onAppear {
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
-            focus = .server
-        }
-        .focusedSceneValue(\.rsyncActions, RsyncActions(
-            run: runCommand, copy: copy, save: saveCurrentAsProfile, clear: clearFields, canRun: isComplete
-        ))
-        .enableInjection()
+        content
+            .frame(minWidth: 480, idealWidth: 540, maxWidth: .infinity,
+                   minHeight: 250, idealHeight: 280, maxHeight: .infinity)
+            .toolbar { toolbar }
+            .onAppear {
+                NSApp.setActivationPolicy(.regular)
+                NSApp.activate(ignoringOtherApps: true)
+                focus = .server
+            }
+            .focusedSceneValue(\.rsyncActions, RsyncActions(
+                run: runCommand, copy: copy, save: saveCurrentAsProfile, clear: clearFields, canRun: isComplete
+            ))
+            .enableInjection()
     }
 
-    private var form: some View {
-        Form {
-            Section {
-                Picker("", selection: $direction) {
-                    Label(s.upload, systemImage: "arrow.up.circle").tag(Direction.upload)
-                    Label(s.download, systemImage: "arrow.down.circle").tag(Direction.download)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Picker("", selection: $direction) {
+                Label(s.upload, systemImage: "arrow.up.circle").tag(Direction.upload)
+                Label(s.download, systemImage: "arrow.down.circle").tag(Direction.download)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button { copy() } label: {
+                Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
+            }
+            .help(s.copyHelp)
+            .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 1)) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }, value: copied, isEnabled: copied && !reduceMotion)
 
-            Section(s.serverSection) {
-                HStack(spacing: 6) {
-                    TextField("user@host", text: $userHost)
-                        .focused($focus, equals: .server)
-                    Menu {
-                        ForEach(profiles) { p in
-                            Button(p.name) {
-                                userHost = p.userHost
-                                port = p.port
-                                remotePath = p.remotePath
-                            }
+            Button { runCommand() } label: {
+                Label(s.run, systemImage: "play.fill")
+            }
+            .disabled(!isComplete)
+            .help(s.runHelp)
+            .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
+
+            SettingsLink { Image(systemName: "gearshape") }
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                TextField("user@host", text: $userHost)
+                    .focused($focus, equals: .server)
+                Menu {
+                    ForEach(profiles) { p in
+                        Button(p.name) {
+                            userHost = p.userHost
+                            port = p.port
+                            remotePath = p.remotePath
                         }
-                    } label: { Image(systemName: "chevron.down") }
-                        .frame(width: 36)
-                        .accessibilityLabel(s.serverProfiles)
-                    Button(s.saveButton) { saveCurrentAsProfile() }
-                        .help(s.saveHelp)
-                }
-                TextField(s.portPlaceholder, text: $port)
+                    }
+                } label: { Image(systemName: "chevron.down") }
+                    .frame(width: 28)
+                    .accessibilityLabel(s.serverProfiles)
+                Button(s.saveButton) { saveCurrentAsProfile() }.help(s.saveHelp)
+                Text(s.portLabel).foregroundStyle(.secondary)
+                TextField("22", text: $port)
+                    .frame(width: 52)
                     .focused($focus, equals: .port)
-                    .frame(width: 120)
                     .onChange(of: port) { _, new in
                         let digits = new.filter(\.isNumber)
                         if digits != new { port = digits }
                     }
             }
 
-            Section(s.pathsSection) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(localLabel).font(.caption).foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        TextField(s.localPlaceholder, text: $localPath, axis: .vertical)
-                            .lineLimit(1...3)
-                            .focused($focus, equals: .local)
-                            .help(s.localHelp)
-                        Button(s.browse) { browse() }.help(s.browseHelp)
-                    }
-                    .padding(6)
-                    .background(dropLocal ? Color.accentColor.opacity(0.15) : .clear)
-                    .overlay(dropBorder)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let u = urls.first else { return false }
-                        localPath = u.path
-                        return true
-                    } isTargeted: { dropLocal = $0 }
-                    if localPath.isEmpty {
-                        Text(s.localTip)
-                            .font(.caption2).foregroundStyle(.tertiary)
-                    }
+            // локальная сторона: drop-зона + Обзор
+            VStack(alignment: .leading, spacing: 2) {
+                Text(localLabel).font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    TextField(s.localPlaceholder, text: $localPath, axis: .vertical)
+                        .lineLimit(1...2)
+                        .focused($focus, equals: .local)
+                        .help(s.localHelp)
+                    Button(s.browse) { browse() }.help(s.browseHelp)
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(remoteLabel).font(.caption).foregroundStyle(.secondary)
-                    TextField(s.remotePlaceholder, text: $remotePath, axis: .vertical)
-                        .lineLimit(1...3)
-                        .focused($focus, equals: .remote)
-                        .help(s.remoteHelp)
+                .padding(5)
+                .background(dropLocal ? Color.accentColor.opacity(0.15) : .clear)
+                .overlay(dropBorder)
+                .dropDestination(for: URL.self) { urls, _ in
+                    guard let u = urls.first else { return false }
+                    localPath = u.path
+                    return true
+                } isTargeted: { dropLocal = $0 }
+                if localPath.isEmpty {
+                    Text(s.localTip).font(.caption2).foregroundStyle(.tertiary)
                 }
             }
 
-            Section(s.optionsSection) {
-                LabeledContent(s.flags) {
-                    HStack(spacing: 14) {
-                        Toggle("-a", isOn: $flagA)
-                            .accessibilityLabel(s.flagAA11y).help(s.flagAHelp)
-                        Toggle("-v", isOn: $flagV)
-                            .accessibilityLabel(s.flagVA11y).help(s.flagVHelp)
-                        Toggle("-c", isOn: $flagC)
-                            .accessibilityLabel(s.flagCA11y).help(s.flagCHelp)
+            // серверная сторона: ввод/вставка
+            VStack(alignment: .leading, spacing: 2) {
+                Text(remoteLabel).font(.caption).foregroundStyle(.secondary)
+                TextField(s.remotePlaceholder, text: $remotePath, axis: .vertical)
+                    .lineLimit(1...2)
+                    .focused($focus, equals: .remote)
+                    .help(s.remoteHelp)
+            }
+
+            HStack(spacing: 12) {
+                Toggle("-a", isOn: $flagA).accessibilityLabel(s.flagAA11y).help(s.flagAHelp)
+                Toggle("-v", isOn: $flagV).accessibilityLabel(s.flagVA11y).help(s.flagVHelp)
+                Toggle("-c", isOn: $flagC).accessibilityLabel(s.flagCA11y).help(s.flagCHelp)
+                Spacer()
+                Button { showExcludes.toggle() } label: {
+                    HStack(spacing: 3) {
+                        Text("\(s.excludeSection): \(enabledExcludeCount)")
+                        Image(systemName: "chevron.down").font(.caption2)
                     }
-                    .toggleStyle(.checkbox)
                 }
-                excludesView
+                .popover(isPresented: $showExcludes, arrowEdge: .bottom) { excludesPopover }
+            }
+            .toggleStyle(.checkbox)
+
+            Text(command.isEmpty ? " " : command)
+                .font(.system(.callout, design: .monospaced))
+                .textSelection(.enabled)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+
+            if !isComplete {
+                Label(s.incompleteWarning, systemImage: "exclamationmark.triangle")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
-        .scrollDisabled(true)
+        .padding(12)
     }
 
-    private var excludesView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(s.excludeSection).font(.caption).foregroundStyle(.secondary)
+    private var excludesPopover: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(s.excludeSection).font(.headline)
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
                 alignment: .leading, spacing: 4
             ) {
                 ForEach($excludes) { $ex in
@@ -178,47 +211,8 @@ struct ContentView: View {
                     .help(s.addExcludeHelp)
             }
         }
-    }
-
-    private var commandBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ScrollView(.vertical) {
-                Text(command.isEmpty ? " " : command)
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .padding(10)
-            }
-            .frame(minHeight: 54, maxHeight: 130)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator))
-
-            HStack {
-                if !isComplete {
-                    Label(s.incompleteWarning, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button { copy() } label: {
-                    Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
-                }
-                .buttonStyle(.glass)
-                .help(s.copyHelp)
-                .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 0)) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                }, value: copied, isEnabled: copied && !reduceMotion)
-
-                Button { runCommand() } label: {
-                    Label(s.run, systemImage: "play.fill")
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(!isComplete)
-                .help(s.runHelp)
-                .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
-            }
-        }
-        .padding(14)
-        .background(.bar)
+        .padding(12)
+        .frame(width: 300)
     }
 
     // пунктирная рамка drop-зоны (контрастнее при наведении)
@@ -285,6 +279,7 @@ struct RsyncBuilderApp: App {
         WindowGroup("rsync builder") {
             ContentView()
         }
+        .defaultSize(width: 540, height: 300)
         .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .appInfo) {
