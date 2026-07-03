@@ -10,6 +10,7 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // состояние формы сохраняется между запусками
+    @AppStorage("lang") private var lang: Lang = .en
     @AppStorage("direction") private var direction: Direction = .upload
     @AppStorage("userHost") private var userHost = defaultProfiles.first?.userHost ?? ""
     @AppStorage("port") private var port = defaultProfiles.first?.port ?? "22"
@@ -29,8 +30,9 @@ struct ContentView: View {
 
     private enum Field { case server, port, local, remote, newExclude }
 
-    private var localLabel: String { direction == .upload ? "Источник · локально" : "Приём · локально" }
-    private var remoteLabel: String { direction == .upload ? "Приём · на сервере" : "Источник · на сервере" }
+    private var s: L10n { .of(lang) }
+    private var localLabel: String { direction == .upload ? s.sourceLocal : s.destLocal }
+    private var remoteLabel: String { direction == .upload ? s.destServer : s.sourceServer }
 
     // команда полна, только когда заданы сервер и оба пути
     private var isComplete: Bool {
@@ -54,7 +56,7 @@ struct ContentView: View {
             commandBar
         }
         .frame(minWidth: 540, idealWidth: 640, maxWidth: .infinity,
-               minHeight: 560, idealHeight: 700, maxHeight: .infinity)
+               minHeight: 600, idealHeight: 640, maxHeight: .infinity)
         .onAppear {
             NSApp.setActivationPolicy(.regular)
             NSApp.activate(ignoringOtherApps: true)
@@ -69,15 +71,15 @@ struct ContentView: View {
     private var form: some View {
         Form {
             Section {
-                Picker("Направление", selection: $direction) {
-                    Label("Upload", systemImage: "arrow.up.circle").tag(Direction.upload)
-                    Label("Download", systemImage: "arrow.down.circle").tag(Direction.download)
+                Picker("", selection: $direction) {
+                    Label(s.upload, systemImage: "arrow.up.circle").tag(Direction.upload)
+                    Label(s.download, systemImage: "arrow.down.circle").tag(Direction.download)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
 
-            Section("Сервер") {
+            Section(s.serverSection) {
                 HStack(spacing: 6) {
                     TextField("user@host", text: $userHost)
                         .focused($focus, equals: .server)
@@ -91,11 +93,11 @@ struct ContentView: View {
                         }
                     } label: { Image(systemName: "chevron.down") }
                         .frame(width: 36)
-                        .accessibilityLabel("Профили серверов")
-                    Button("Сохранить") { saveCurrentAsProfile() }
-                        .help("сохранить текущий сервер как профиль")
+                        .accessibilityLabel(s.serverProfiles)
+                    Button(s.saveButton) { saveCurrentAsProfile() }
+                        .help(s.saveHelp)
                 }
-                TextField("порт SSH", text: $port)
+                TextField(s.portPlaceholder, text: $port)
                     .focused($focus, equals: .port)
                     .frame(width: 120)
                     .onChange(of: port) { _, new in
@@ -104,15 +106,15 @@ struct ContentView: View {
                     }
             }
 
-            Section("Пути") {
+            Section(s.pathsSection) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(localLabel).font(.caption).foregroundStyle(.secondary)
                     HStack(spacing: 6) {
-                        TextField("перетащи файл сюда или вставь путь", text: $localPath, axis: .vertical)
+                        TextField(s.localPlaceholder, text: $localPath, axis: .vertical)
                             .lineLimit(1...3)
                             .focused($focus, equals: .local)
-                            .help("перетащи файл/папку или впиши путь. С '/' в конце папки копируется её содержимое, без '/' - сама папка")
-                        Button("Обзор") { browse() }.help("выбрать файл или папку")
+                            .help(s.localHelp)
+                        Button(s.browse) { browse() }.help(s.browseHelp)
                     }
                     .padding(6)
                     .background(dropLocal ? Color.accentColor.opacity(0.15) : .clear)
@@ -123,32 +125,29 @@ struct ContentView: View {
                         return true
                     } isTargeted: { dropLocal = $0 }
                     if localPath.isEmpty {
-                        Text("подсказка: сюда можно перетащить файл или папку из Finder")
+                        Text(s.localTip)
                             .font(.caption2).foregroundStyle(.tertiary)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(remoteLabel).font(.caption).foregroundStyle(.secondary)
-                    TextField("путь на сервере, напр. ~/app/", text: $remotePath, axis: .vertical)
+                    TextField(s.remotePlaceholder, text: $remotePath, axis: .vertical)
                         .lineLimit(1...3)
                         .focused($focus, equals: .remote)
-                        .help("путь на удалённой машине. С '/' в конце - содержимое, без - сама папка")
+                        .help(s.remoteHelp)
                 }
             }
 
-            Section("Опции") {
-                LabeledContent("Флаги") {
+            Section(s.optionsSection) {
+                LabeledContent(s.flags) {
                     HStack(spacing: 14) {
                         Toggle("-a", isOn: $flagA)
-                            .accessibilityLabel("архивный режим")
-                            .help("архивный режим: рекурсивно, сохраняет права, время и симлинки")
+                            .accessibilityLabel(s.flagAA11y).help(s.flagAHelp)
                         Toggle("-v", isOn: $flagV)
-                            .accessibilityLabel("подробный вывод")
-                            .help("подробный вывод - показывать каждый передаваемый файл")
+                            .accessibilityLabel(s.flagVA11y).help(s.flagVHelp)
                         Toggle("-c", isOn: $flagC)
-                            .accessibilityLabel("сверка по контрольной сумме")
-                            .help("сверять по контрольной сумме, а не по размеру и времени")
+                            .accessibilityLabel(s.flagCA11y).help(s.flagCHelp)
                     }
                     .toggleStyle(.checkbox)
                 }
@@ -156,11 +155,12 @@ struct ContentView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollDisabled(true)
     }
 
     private var excludesView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Исключить").font(.caption).foregroundStyle(.secondary)
+            Text(s.excludeSection).font(.caption).foregroundStyle(.secondary)
             LazyVGrid(
                 columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
                 alignment: .leading, spacing: 4
@@ -171,11 +171,11 @@ struct ContentView: View {
             }
             .toggleStyle(.checkbox)
             HStack(spacing: 6) {
-                TextField("своё исключение", text: $newExclude)
+                TextField(s.excludePlaceholder, text: $newExclude)
                     .focused($focus, equals: .newExclude)
                 Button { addExclude() } label: { Image(systemName: "plus") }
                     .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .help("добавить исключение")
+                    .help(s.addExcludeHelp)
             }
         }
     }
@@ -195,25 +195,25 @@ struct ContentView: View {
 
             HStack {
                 if !isComplete {
-                    Label("заполни сервер и оба пути", systemImage: "exclamationmark.triangle")
+                    Label(s.incompleteWarning, systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button { copy() } label: {
-                    Label(copied ? "Скопировано" : "Копировать", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
                 }
                 .buttonStyle(.glass)
-                .help("скопировать команду в буфер обмена")
+                .help(s.copyHelp)
                 .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 0)) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 }, value: copied, isEnabled: copied && !reduceMotion)
 
                 Button { runCommand() } label: {
-                    Label("Старт", systemImage: "play.fill")
+                    Label(s.run, systemImage: "play.fill")
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(!isComplete)
-                .help("запустить команду в терминале")
+                .help(s.runHelp)
                 .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
             }
         }
@@ -279,6 +279,8 @@ struct ContentView: View {
 
 @main
 struct RsyncBuilderApp: App {
+    @AppStorage("lang") private var lang: Lang = .en
+
     var body: some Scene {
         WindowGroup("rsync builder") {
             ContentView()
@@ -288,9 +290,13 @@ struct RsyncBuilderApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About rsync builder") { showAboutPanel() }
             }
-            CommandMenu("Команда") {
+            CommandMenu(L10n.of(lang).commandMenu) {
                 RsyncCommands()
             }
+        }
+
+        Settings {
+            SettingsView()
         }
     }
 }

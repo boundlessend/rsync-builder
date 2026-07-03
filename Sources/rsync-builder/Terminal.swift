@@ -33,7 +33,8 @@ final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
             backing: .buffered,
             defer: false
         )
-        w.title = "Терминал - rsync builder"
+        let lang = Lang(rawValue: UserDefaults.standard.string(forKey: "lang") ?? "en") ?? .en
+        w.title = L10n.of(lang).terminalTitle
         w.contentView = view
         w.isReleasedWhenClosed = false
         w.center()

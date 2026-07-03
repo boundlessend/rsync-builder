@@ -24,18 +24,21 @@ extension FocusedValues {
 // пункты меню «Команда» в меню-баре
 struct RsyncCommands: View {
     @FocusedValue(\.rsyncActions) private var actions
+    @AppStorage("lang") private var lang: Lang = .en
+
+    private var s: L10n { .of(lang) }
 
     var body: some View {
-        Button("Запустить") { actions?.run() }
+        Button(s.menuRun) { actions?.run() }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(actions?.canRun != true)
-        Button("Скопировать команду") { actions?.copy() }
+        Button(s.menuCopy) { actions?.copy() }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(actions == nil)
         Divider()
-        Button("Сохранить профиль") { actions?.save() }
+        Button(s.menuSaveProfile) { actions?.save() }
             .disabled(actions == nil)
-        Button("Очистить поля") { actions?.clear() }
+        Button(s.menuClear) { actions?.clear() }
             .disabled(actions == nil)
     }
 }
