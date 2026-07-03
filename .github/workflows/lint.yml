@@ -1,0 +1,17 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  swift-format:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # информационный прогон: показывает замечания стиля, но не валит CI (без --strict)
+      - name: swift-format lint
+        run: swift format lint --recursive --configuration .swift-format Sources tests
