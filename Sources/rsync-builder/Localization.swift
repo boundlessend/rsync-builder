@@ -19,7 +19,7 @@ struct L10n {
     let incompleteWarning: String
     let copy, copied, copyHelp, run, runHelp: String
     let commandMenu, menuRun, menuCopy, menuSaveProfile, menuClear: String
-    let terminalTitle, settingsLanguage: String
+    let terminalTitle, settingsLanguage, settingsItem, quitItem: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -67,7 +67,9 @@ struct L10n {
         menuSaveProfile: "Save profile",
         menuClear: "Clear fields",
         terminalTitle: "Terminal - rsync builder",
-        settingsLanguage: "Language"
+        settingsLanguage: "Language",
+        settingsItem: "Settings…",
+        quitItem: "Quit"
     )
 
     static let ru = L10n(
@@ -114,6 +116,8 @@ struct L10n {
         menuSaveProfile: "Сохранить профиль",
         menuClear: "Очистить поля",
         terminalTitle: "Терминал - rsync builder",
-        settingsLanguage: "Язык"
+        settingsLanguage: "Язык",
+        settingsItem: "Настройки…",
+        quitItem: "Выход"
     )
 }

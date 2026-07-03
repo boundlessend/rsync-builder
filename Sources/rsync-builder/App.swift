@@ -8,6 +8,7 @@ struct ContentView: View {
     @Default(.profiles) private var profiles
     @ObserveInjection private var inject
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openSettings) private var openSettings
 
     // состояние формы сохраняется между запусками
     @AppStorage("lang") private var lang: Lang = .en
@@ -55,54 +56,9 @@ struct ContentView: View {
     }
 
     var body: some View {
-        content
-            .frame(minWidth: 480, idealWidth: 540, maxWidth: .infinity,
-                   minHeight: 250, idealHeight: 280, maxHeight: .infinity)
-            .toolbar { toolbar }
-            .onAppear {
-                NSApp.setActivationPolicy(.regular)
-                NSApp.activate(ignoringOtherApps: true)
-                focus = .server
-            }
-            .focusedSceneValue(\.rsyncActions, RsyncActions(
-                run: runCommand, copy: copy, save: saveCurrentAsProfile, clear: clearFields, canRun: isComplete
-            ))
-            .enableInjection()
-    }
-
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            Picker("", selection: $direction) {
-                Label(s.upload, systemImage: "arrow.up.circle").tag(Direction.upload)
-                Label(s.download, systemImage: "arrow.down.circle").tag(Direction.download)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-        }
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button { copy() } label: {
-                Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
-            }
-            .help(s.copyHelp)
-            .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 1)) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            }, value: copied, isEnabled: copied && !reduceMotion)
-
-            Button { runCommand() } label: {
-                Label(s.run, systemImage: "play.fill")
-            }
-            .disabled(!isComplete)
-            .help(s.runHelp)
-            .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
-
-            SettingsLink { Image(systemName: "gearshape") }
-        }
-    }
-
-    private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
+            topBar
+
             HStack(spacing: 6) {
                 TextField("user@host", text: $userHost)
                     .focused($focus, equals: .server)
@@ -189,6 +145,57 @@ struct ContentView: View {
             }
         }
         .padding(12)
+        .frame(width: 440)
+        .onAppear {
+            NSApp.activate(ignoringOtherApps: true)
+            focus = .server
+        }
+        .enableInjection()
+    }
+
+    // шапка панели: направление + Copy/Run + меню «•••»
+    private var topBar: some View {
+        HStack(spacing: 8) {
+            Picker("", selection: $direction) {
+                Label(s.upload, systemImage: "arrow.up.circle").tag(Direction.upload)
+                Label(s.download, systemImage: "arrow.down.circle").tag(Direction.download)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+
+            Spacer()
+
+            Button { copy() } label: {
+                Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .help(s.copyHelp)
+            .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 1)) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }, value: copied, isEnabled: copied && !reduceMotion)
+
+            Button { runCommand() } label: {
+                Label(s.run, systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!isComplete)
+            .help(s.runHelp)
+            .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
+
+            Menu {
+                Button(s.settingsItem) { openSettings() }
+                Button("About rsync builder") { showAboutPanel() }
+                Divider()
+                Button(s.quitItem) { NSApp.terminate(nil) }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
     }
 
     private var excludesPopover: some View {
@@ -251,14 +258,6 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
 
-    // сброс полей к примерам-плейсхолдерам
-    private func clearFields() {
-        userHost = defaultProfiles.first?.userHost ?? ""
-        port = defaultProfiles.first?.port ?? "22"
-        localPath = ""
-        remotePath = defaultProfiles.first?.remotePath ?? "~/"
-    }
-
     // @Default сохраняет автоматически при мутации массива
     private func saveCurrentAsProfile() {
         let name = userHost.split(separator: "@").first.map(String.init) ?? userHost
@@ -271,24 +270,17 @@ struct ContentView: View {
     }
 }
 
+private let menuBarIcon = makeMenuBarIcon()
+
 @main
 struct RsyncBuilderApp: App {
-    @AppStorage("lang") private var lang: Lang = .en
-
     var body: some Scene {
-        WindowGroup("rsync builder") {
+        MenuBarExtra {
             ContentView()
+        } label: {
+            Image(nsImage: menuBarIcon)
         }
-        .defaultSize(width: 540, height: 300)
-        .windowResizability(.contentMinSize)
-        .commands {
-            CommandGroup(replacing: .appInfo) {
-                Button("About rsync builder") { showAboutPanel() }
-            }
-            CommandMenu(L10n.of(lang).commandMenu) {
-                RsyncCommands()
-            }
-        }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()

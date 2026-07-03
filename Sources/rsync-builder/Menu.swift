@@ -1,50 +1,19 @@
 import SwiftUI
 import AppKit
 
-// действия, которые форма публикует в меню-бар через focused value
-struct RsyncActions {
-    let run: () -> Void
-    let copy: () -> Void
-    let save: () -> Void
-    let clear: () -> Void
-    let canRun: Bool
-}
-
-struct RsyncActionsKey: FocusedValueKey {
-    typealias Value = RsyncActions
-}
-
-extension FocusedValues {
-    var rsyncActions: RsyncActions? {
-        get { self[RsyncActionsKey.self] }
-        set { self[RsyncActionsKey.self] = newValue }
-    }
-}
-
-// пункты меню «Команда» в меню-баре
-struct RsyncCommands: View {
-    @FocusedValue(\.rsyncActions) private var actions
-    @AppStorage("lang") private var lang: Lang = .en
-
-    private var s: L10n { .of(lang) }
-
-    var body: some View {
-        Button(s.menuRun) { actions?.run() }
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(actions?.canRun != true)
-        Button(s.menuCopy) { actions?.copy() }
-            .keyboardShortcut("c", modifiers: [.command, .shift])
-            .disabled(actions == nil)
-        Divider()
-        Button(s.menuSaveProfile) { actions?.save() }
-            .disabled(actions == nil)
-        Button(s.menuClear) { actions?.clear() }
-            .disabled(actions == nil)
-    }
+// template-иконка для меню-бара (монохром, тонируется системой)
+func makeMenuBarIcon() -> NSImage {
+    let path = Bundle.main.resourcePath.map { $0 + "/menubar-icon.png" }
+    let img = path.flatMap { NSImage(contentsOfFile: $0) }
+        ?? NSImage(systemSymbolName: "arrow.up.arrow.down.circle", accessibilityDescription: "rsync builder")!
+    img.isTemplate = true
+    img.size = NSSize(width: 18, height: 18)
+    return img
 }
 
 // стандартная панель About с версией и лицензией
 func showAboutPanel() {
+    NSApp.activate(ignoringOtherApps: true)
     NSApp.orderFrontStandardAboutPanel(options: [
         .applicationName: "rsync builder",
         .applicationVersion: "1.0",
