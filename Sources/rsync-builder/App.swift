@@ -59,7 +59,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             topBar
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 TextField("user@host", text: $userHost)
                     .focused($focus, equals: .server)
                 Menu {
@@ -71,17 +71,23 @@ struct ContentView: View {
                         }
                     }
                 } label: { Image(systemName: "chevron.down") }
-                    .frame(width: 28)
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .accessibilityLabel(s.serverProfiles)
                 Button(s.saveButton) { saveCurrentAsProfile() }.help(s.saveHelp)
+            }
+
+            HStack(spacing: 8) {
                 Text(s.portLabel).foregroundStyle(.secondary)
                 TextField("22", text: $port)
-                    .frame(width: 52)
+                    .frame(width: 70)
                     .focused($focus, equals: .port)
                     .onChange(of: port) { _, new in
                         let digits = new.filter(\.isNumber)
                         if digits != new { port = digits }
                     }
+                Spacer()
             }
 
             // локальная сторона: drop-зона + Обзор
@@ -145,7 +151,7 @@ struct ContentView: View {
             }
         }
         .padding(12)
-        .frame(width: 440)
+        .frame(width: 460)
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
             focus = .server
