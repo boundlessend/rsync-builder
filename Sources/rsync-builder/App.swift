@@ -7,25 +7,37 @@ import Inject
 struct ContentView: View {
     @Default(.profiles) private var profiles
     @ObserveInjection private var inject
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var direction: Direction = .upload
-    @State private var userHost = defaultProfiles.first?.userHost ?? ""
-    @State private var port = defaultProfiles.first?.port ?? "22"
-    @State private var localPath = ""
-    @State private var remotePath = defaultProfiles.first?.remotePath ?? "~/"
-    @State private var flagA = true
-    @State private var flagV = true
-    @State private var flagC = true
+    // состояние формы сохраняется между запусками
+    @AppStorage("direction") private var direction: Direction = .upload
+    @AppStorage("userHost") private var userHost = defaultProfiles.first?.userHost ?? ""
+    @AppStorage("port") private var port = defaultProfiles.first?.port ?? "22"
+    @AppStorage("localPath") private var localPath = ""
+    @AppStorage("remotePath") private var remotePath = defaultProfiles.first?.remotePath ?? "~/"
+    @AppStorage("flagA") private var flagA = true
+    @AppStorage("flagV") private var flagV = true
+    @AppStorage("flagC") private var flagC = true
+
     @State private var excludes: [ExcludeItem] = defaultExcludes
     @State private var newExclude = ""
     @State private var copied = false
     @State private var dropLocal = false
-    @StateObject private var terminal = TerminalWindow()
     @State private var startPulse = 0
+    @StateObject private var terminal = TerminalWindow()
+    @FocusState private var focus: Field?
 
-    // подписи сторон зависят от направления
+    private enum Field { case server, port, local, remote, newExclude }
+
     private var localLabel: String { direction == .upload ? "Источник · локально" : "Приём · локально" }
     private var remoteLabel: String { direction == .upload ? "Приём · на сервере" : "Источник · на сервере" }
+
+    // команда полна, только когда заданы сервер и оба пути
+    private var isComplete: Bool {
+        !userHost.trimmingCharacters(in: .whitespaces).isEmpty
+            && !localPath.trimmingCharacters(in: .whitespaces).isEmpty
+            && !remotePath.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     private var command: String {
         buildCommand(
@@ -36,143 +48,189 @@ struct ContentView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Picker("", selection: $direction) {
-                ForEach(Direction.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+        VStack(spacing: 0) {
+            form
+            Divider()
+            commandBar
+        }
+        .frame(minWidth: 540, idealWidth: 640, maxWidth: .infinity,
+               minHeight: 560, idealHeight: 700, maxHeight: .infinity)
+        .onAppear {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate(ignoringOtherApps: true)
+            focus = .server
+        }
+        .focusedSceneValue(\.rsyncActions, RsyncActions(
+            run: runCommand, copy: copy, save: saveCurrentAsProfile, clear: clearFields, canRun: isComplete
+        ))
+        .enableInjection()
+    }
 
-            // сервер: редактируемое поле + меню профилей + сохранить
-            HStack(spacing: 6) {
-                Text("Сервер").frame(width: 70, alignment: .leading)
-                TextField("user@host", text: $userHost).textFieldStyle(.roundedBorder)
-                Menu {
-                    ForEach(profiles) { p in
-                        Button(p.name) {
-                            userHost = p.userHost
-                            port = p.port
-                            remotePath = p.remotePath
+    private var form: some View {
+        Form {
+            Section {
+                Picker("Направление", selection: $direction) {
+                    Label("Upload", systemImage: "arrow.up.circle").tag(Direction.upload)
+                    Label("Download", systemImage: "arrow.down.circle").tag(Direction.download)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
+            Section("Сервер") {
+                HStack(spacing: 6) {
+                    TextField("user@host", text: $userHost)
+                        .focused($focus, equals: .server)
+                    Menu {
+                        ForEach(profiles) { p in
+                            Button(p.name) {
+                                userHost = p.userHost
+                                port = p.port
+                                remotePath = p.remotePath
+                            }
                         }
-                    }
-                } label: { Image(systemName: "chevron.down") }
-                .frame(width: 36)
-                Button("Сохранить") { saveCurrentAsProfile() }
-            }
-
-            HStack(spacing: 6) {
-                Text("Порт SSH").frame(width: 70, alignment: .leading)
-                TextField("22", text: $port)
-                    .textFieldStyle(.roundedBorder).frame(width: 80)
+                    } label: { Image(systemName: "chevron.down") }
+                        .frame(width: 36)
+                        .accessibilityLabel("Профили серверов")
+                    Button("Сохранить") { saveCurrentAsProfile() }
+                        .help("сохранить текущий сервер как профиль")
+                }
+                TextField("порт SSH", text: $port)
+                    .focused($focus, equals: .port)
+                    .frame(width: 120)
                     .onChange(of: port) { _, new in
                         let digits = new.filter(\.isNumber)
                         if digits != new { port = digits }
                     }
             }
 
-            // локальная сторона: широкая drop-зона + вставка + Обзор
-            VStack(alignment: .leading, spacing: 4) {
-                Text(localLabel).font(.subheadline).foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    TextField("перетащи файл сюда или вставь путь", text: $localPath, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
+            Section("Пути") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(localLabel).font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        TextField("перетащи файл сюда или вставь путь", text: $localPath, axis: .vertical)
+                            .lineLimit(1...3)
+                            .focused($focus, equals: .local)
+                            .help("перетащи файл/папку или впиши путь. С '/' в конце папки копируется её содержимое, без '/' - сама папка")
+                        Button("Обзор") { browse() }.help("выбрать файл или папку")
+                    }
+                    .padding(6)
+                    .background(dropLocal ? Color.accentColor.opacity(0.15) : .clear)
+                    .overlay(dropBorder)
+                    .dropDestination(for: URL.self) { urls, _ in
+                        guard let u = urls.first else { return false }
+                        localPath = u.path
+                        return true
+                    } isTargeted: { dropLocal = $0 }
+                    if localPath.isEmpty {
+                        Text("подсказка: сюда можно перетащить файл или папку из Finder")
+                            .font(.caption2).foregroundStyle(.tertiary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(remoteLabel).font(.caption).foregroundStyle(.secondary)
+                    TextField("путь на сервере, напр. ~/app/", text: $remotePath, axis: .vertical)
                         .lineLimit(1...3)
-                        .help("перетащи файл/папку или впиши путь. С '/' в конце папки копируется её содержимое, без '/' - сама папка")
-                    Button("Обзор") { browse() }
-                }
-                .padding(6)
-                .background(dropLocal ? Color.accentColor.opacity(0.15) : .clear)
-                .overlay(dropBorder)
-                .dropDestination(for: URL.self) { urls, _ in
-                    guard let u = urls.first else { return false }
-                    localPath = u.path
-                    return true
-                } isTargeted: { dropLocal = $0 }
-            }
-
-            // серверная сторона: путь на сервере (ввод/вставка; перетаскивание дало бы локальный путь, поэтому его тут нет)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(remoteLabel).font(.subheadline).foregroundStyle(.secondary)
-                TextField("путь на сервере, напр. ~/app/", text: $remotePath, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...3)
-                    .help("путь на удалённой машине. С '/' в конце - содержимое, без - сама папка")
-            }
-
-            HStack(spacing: 16) {
-                Text("Флаги").frame(width: 70, alignment: .leading)
-                Toggle("-a", isOn: $flagA)
-                    .help("архивный режим: рекурсивно, сохраняет права, время и симлинки")
-                Toggle("-v", isOn: $flagV)
-                    .help("подробный вывод - показывать каждый передаваемый файл")
-                Toggle("-c", isOn: $flagC)
-                    .help("сверять файлы по контрольной сумме, а не по размеру и времени (медленнее, надёжнее)")
-                Spacer()
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Исключить").font(.subheadline).foregroundStyle(.secondary)
-                excludeGrid
-                HStack(spacing: 6) {
-                    TextField("своё исключение", text: $newExclude).textFieldStyle(.roundedBorder)
-                    Button("＋ добавить") { addExclude() }
-                        .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .focused($focus, equals: .remote)
+                        .help("путь на удалённой машине. С '/' в конце - содержимое, без - сама папка")
                 }
             }
 
-            Divider()
-
-            // область команды тянется по вертикали и забирает лишнее место при ресайзе
-            Text(command)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(10)
-                .background(Color(nsColor: .textBackgroundColor))
-                .cornerRadius(6)
-
-            HStack {
-                Spacer()
-                Button(copied ? "Скопировано ✓" : "Копировать") { copy() }
-                    .keyboardShortcut("c", modifiers: [.command, .shift])
-                    .buttonStyle(.glass)
-                    .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 0)) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    }, value: copied, isEnabled: copied)
-                Button("▶ Старт") {
-                    startPulse += 1
-                    terminal.run(command: command)
+            Section("Опции") {
+                LabeledContent("Флаги") {
+                    HStack(spacing: 14) {
+                        Toggle("-a", isOn: $flagA)
+                            .accessibilityLabel("архивный режим")
+                            .help("архивный режим: рекурсивно, сохраняет права, время и симлинки")
+                        Toggle("-v", isOn: $flagV)
+                            .accessibilityLabel("подробный вывод")
+                            .help("подробный вывод - показывать каждый передаваемый файл")
+                        Toggle("-c", isOn: $flagC)
+                            .accessibilityLabel("сверка по контрольной сумме")
+                            .help("сверять по контрольной сумме, а не по размеру и времени")
+                    }
+                    .toggleStyle(.checkbox)
                 }
-                .keyboardShortcut(.return, modifiers: .command)
-                .buttonStyle(.glassProminent)
-                .changeEffect(.shine(duration: 0.7), value: startPulse)
+                excludesView
             }
         }
-        .padding(18)
-        .frame(minWidth: 520, idealWidth: 620, maxWidth: .infinity,
-               minHeight: 440, idealHeight: 520, maxHeight: .infinity,
-               alignment: .top)
-        .onAppear {
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .enableInjection()
+        .formStyle(.grouped)
     }
 
-    // пунктирная рамка drop-зоны
+    private var excludesView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Исключить").font(.caption).foregroundStyle(.secondary)
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                alignment: .leading, spacing: 4
+            ) {
+                ForEach($excludes) { $ex in
+                    Toggle(ex.pattern, isOn: $ex.on).lineLimit(1)
+                }
+            }
+            .toggleStyle(.checkbox)
+            HStack(spacing: 6) {
+                TextField("своё исключение", text: $newExclude)
+                    .focused($focus, equals: .newExclude)
+                Button { addExclude() } label: { Image(systemName: "plus") }
+                    .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .help("добавить исключение")
+            }
+        }
+    }
+
+    private var commandBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.vertical) {
+                Text(command.isEmpty ? " " : command)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(10)
+            }
+            .frame(minHeight: 54, maxHeight: 130)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(.separator))
+
+            HStack {
+                if !isComplete {
+                    Label("заполни сервер и оба пути", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button { copy() } label: {
+                    Label(copied ? "Скопировано" : "Копировать", systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(.glass)
+                .help("скопировать команду в буфер обмена")
+                .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 0)) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                }, value: copied, isEnabled: copied && !reduceMotion)
+
+                Button { runCommand() } label: {
+                    Label("Старт", systemImage: "play.fill")
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(!isComplete)
+                .help("запустить команду в терминале")
+                .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
+            }
+        }
+        .padding(14)
+        .background(.bar)
+    }
+
+    // пунктирная рамка drop-зоны (контрастнее при наведении)
     private var dropBorder: some View {
         RoundedRectangle(cornerRadius: 6)
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [4]))
-            .foregroundStyle(.secondary.opacity(0.4))
+            .foregroundStyle(dropLocal ? Color.accentColor : Color.secondary.opacity(0.7))
     }
 
-    private var excludeGrid: some View {
-        let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-        return LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
-            ForEach($excludes) { $ex in
-                Toggle(ex.pattern, isOn: $ex.on).lineLimit(1)
-            }
-        }
+    private func runCommand() {
+        startPulse += 1
+        terminal.run(command: command)
     }
 
     private func addExclude() {
@@ -199,6 +257,14 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
 
+    // сброс полей к примерам-плейсхолдерам
+    private func clearFields() {
+        userHost = defaultProfiles.first?.userHost ?? ""
+        port = defaultProfiles.first?.port ?? "22"
+        localPath = ""
+        remotePath = defaultProfiles.first?.remotePath ?? "~/"
+    }
+
     // @Default сохраняет автоматически при мутации массива
     private func saveCurrentAsProfile() {
         let name = userHost.split(separator: "@").first.map(String.init) ?? userHost
@@ -218,5 +284,13 @@ struct RsyncBuilderApp: App {
             ContentView()
         }
         .windowResizability(.contentMinSize)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About rsync builder") { showAboutPanel() }
+            }
+            CommandMenu("Команда") {
+                RsyncCommands()
+            }
+        }
     }
 }
