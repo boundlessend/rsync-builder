@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # требует macOS 26 SDK (нативный Liquid Glass)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+      - name: build app bundle
+        run: ./build.sh
+      # приложение не подписано и не нотаризовано - Gatekeeper покажет предупреждение при первом запуске
+      - name: zip app
+        run: ditto -c -k --keepParent rsync-builder.app rsync-builder.zip
+      - name: publish github release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: rsync-builder.zip

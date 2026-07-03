@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: logic check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      # чистая функция сборки команды на Foundation - работает на любом macOS-раннере
+      - name: command-builder assertions
+        run: |
+          swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check
+          /tmp/rsync_check
+
+  build:
+    name: release build
+    # ВНИМАНИЕ: сборка приложения требует macOS 26 SDK (нативный Liquid Glass).
+    # macos-latest подойдёт, когда GitHub предоставит раннер с macOS 26; иначе self-hosted.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+      - name: swift build (release)
+        run: swift build -c release
