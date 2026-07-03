@@ -16,7 +16,7 @@ func showAboutPanel() {
     NSApp.activate(ignoringOtherApps: true)
     NSApp.orderFrontStandardAboutPanel(options: [
         .applicationName: "rsync builder",
-        .applicationVersion: "1.0",
+        .applicationVersion: "1.1",
         .credits: NSAttributedString(
             string: "BSD 3-Clause · © 2026 Arseni Okhrimenko",
             attributes: [.font: NSFont.systemFont(ofSize: 11)]

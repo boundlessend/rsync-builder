@@ -1,7 +1,7 @@
 # rsync builder - PRD
 
-Status: v1.0.0 shipped. This document records the current state and the planned
-expansion so nothing gets lost.
+Status: v1.1 shipped (Phase 1 of the expansion done). This document records the
+current state and the planned expansion so nothing gets lost.
 
 Last updated: 2026-07-04
 
@@ -25,6 +25,8 @@ being a general file manager.
 - Local path: drag-drop a file/folder or Browse; remote path field.
 - Flags `-a` `-v` `-c` as checkboxes; non-default SSH port becomes `-e "ssh -p N"`.
 - `--exclude` patterns: checkbox grid + custom add, folded into an "Exclude: N ▾" popover.
+- Extra options in an "Options ▾" popover (`-z` `-P` `-u` `--delete` `--stats` `--bwlimit`),
+  each toggle with a tooltip; a Preview button runs the command with `--dry-run`. (v1.1)
 - Live command with shell-safe quoting of every path (`shellQuote`).
 - Copy to clipboard; Run in a separate terminal window (SwiftTerm), where SSH
   password/passphrase prompts work.
@@ -57,14 +59,14 @@ Keep the popover compact. All new controls land in:
 - **per-profile** persistence so a profile restores its full setup;
 - optional **history** entry point in the "•••" menu.
 
-### 3.2 Area A - Safety (priority: high, low risk)
+### 3.2 Area A - Safety (shipped in v1.1)
 | Feature | UI | Effect on command |
 | --- | --- | --- |
 | `--dry-run` / `-n` | **Preview** button (and toggle in Options) | prepend `-n`; run in terminal for a no-op check |
 | `--delete` | Options toggle, red warning "run Preview first" | add `--delete` (mirror; removes dest files missing from source) |
 | `--update` / `-u` | Options toggle | add `-u` (skip files newer on dest) |
 
-### 3.3 Area B - Transfer tuning (priority: high)
+### 3.3 Area B - Transfer tuning (shipped in v1.1)
 | Feature | UI | Effect |
 | --- | --- | --- |
 | `-z` / `--compress` | toggle (Options or main flags row) | add `-z` |
@@ -98,7 +100,7 @@ Keep the popover compact. All new controls land in:
 - New Defaults key for history (`[String]`, capped).
 
 ## 5. Suggested build order
-1. Preview button + Options popover with Area A + B toggles (`-n -z -P -u --delete --bwlimit --stats`). Highest value, self-contained.
+1. ~~Preview button + Options popover with Area A + B toggles (`-n -z -P -u --delete --bwlimit --stats`).~~ **Done in v1.1.**
 2. Area C deploy helpers + post-sync command.
 3. Per-profile settings (model refactor + migration).
 4. History, exclude presets, `-a` decomposition.

@@ -32,6 +32,9 @@ copies it to the clipboard, or runs it in a terminal.
 - Server profiles (`user@host`, port, remote path), saved locally and picked from a menu
 - Drag a file or folder onto the local field to fill its full path
 - Toggle common flags (`-a`, `-v`, `-c`); `--exclude` patterns in a popover
+- Extra options popover: `-z` compress, `-P` progress, `-u` update, `--delete`, `--stats`, `--bwlimit`
+- Preview button: a dry run (`-n`) to see what would transfer before doing it
+- Every toggle has a tooltip explaining what the flag does
 - Live command with shell-safe quoting of paths
 - Copy to clipboard, or run in a separate terminal window (SSH password prompts work there)
 - Interface language (English / Русский) switchable in Settings
