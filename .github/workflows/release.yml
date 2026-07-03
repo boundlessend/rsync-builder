@@ -13,7 +13,7 @@ jobs:
     # требует macOS 26 SDK (нативный Liquid Glass)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: select latest Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
       - name: build app bundle

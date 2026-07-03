@@ -12,7 +12,7 @@ jobs:
     name: logic check
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # чистая функция сборки команды на Foundation - работает на любом macOS-раннере
       - name: command-builder assertions
         run: |
@@ -25,7 +25,7 @@ jobs:
     # macos-latest подойдёт, когда GitHub предоставит раннер с macOS 26; иначе self-hosted.
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: select latest Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
       - name: swift build (release)
