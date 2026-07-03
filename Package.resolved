@@ -1,0 +1,50 @@
+{
+  "pins" : [
+    {
+      "identity" : "defaults",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/Defaults",
+      "state" : {
+        "revision" : "38925e3cfacf3fb89a81a35b1cd44fd5a5b7e0fa",
+        "version" : "8.2.0"
+      }
+    },
+    {
+      "identity" : "inject",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzysztofzablocki/Inject",
+      "state" : {
+        "revision" : "f53380e986a8b056e37d7ce9ca68de610b8415ef",
+        "version" : "1.6.0"
+      }
+    },
+    {
+      "identity" : "pow",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/EmergeTools/Pow",
+      "state" : {
+        "revision" : "1b4b1dda28c50b95f0872927ee2226fe8b58950e",
+        "version" : "1.0.6"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "6a52f3251125d74daf04fcbd5e6f08a75d074382",
+        "version" : "1.8.2"
+      }
+    },
+    {
+      "identity" : "swiftterm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/migueldeicaza/SwiftTerm",
+      "state" : {
+        "revision" : "8e7a1e154f470e19c709a00a8768df348ba5fc43",
+        "version" : "1.13.0"
+      }
+    }
+  ],
+  "version" : 2
+}

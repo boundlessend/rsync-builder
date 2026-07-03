@@ -1,0 +1,9 @@
+# build artifacts
+.build/
+rsync-builder.app/
+
+# swiftpm user data
+.swiftpm/
+
+# macOS
+.DS_Store
