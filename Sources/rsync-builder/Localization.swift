@@ -19,6 +19,10 @@ struct L10n {
     let incompleteWarning: String
     let copy, copied, copyHelp, run, runHelp: String
     let terminalTitle, settingsLanguage, settingsItem, quitItem: String
+    let previewLabel, previewHelp, optionsTitle, safetyHeader, transferHeader: String
+    let optDeleteLabel, optDeleteHelp, optDeleteWarn, optUpdateLabel, optUpdateHelp: String
+    let optCompressLabel, optCompressHelp, optProgressLabel, optProgressHelp: String
+    let optStatsLabel, optStatsHelp, optBwlimitLabel, optBwlimitHelp: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -60,7 +64,25 @@ struct L10n {
         terminalTitle: "Terminal - rsync builder",
         settingsLanguage: "Language",
         settingsItem: "Settings…",
-        quitItem: "Quit"
+        quitItem: "Quit",
+        previewLabel: "Preview",
+        previewHelp: "dry run: show what would transfer without changing anything",
+        optionsTitle: "Options",
+        safetyHeader: "Safety",
+        transferHeader: "Transfer",
+        optDeleteLabel: "--delete (mirror)",
+        optDeleteHelp: "delete files on the destination that no longer exist in the source",
+        optDeleteWarn: "removes files on the other side - run Preview first",
+        optUpdateLabel: "-u update",
+        optUpdateHelp: "skip files that are newer on the destination",
+        optCompressLabel: "-z compress",
+        optCompressHelp: "compress file data during transfer (useful on slow links)",
+        optProgressLabel: "-P progress",
+        optProgressHelp: "show progress and keep partially transferred files (resume)",
+        optStatsLabel: "--stats",
+        optStatsHelp: "print a transfer summary with human-readable sizes",
+        optBwlimitLabel: "bandwidth",
+        optBwlimitHelp: "limit transfer speed in KB/s; empty = unlimited"
     )
 
     static let ru = L10n(
@@ -101,6 +123,24 @@ struct L10n {
         terminalTitle: "Терминал - rsync builder",
         settingsLanguage: "Язык",
         settingsItem: "Настройки…",
-        quitItem: "Выход"
+        quitItem: "Выход",
+        previewLabel: "Превью",
+        previewHelp: "пробный прогон: показать, что будет перенесено, ничего не меняя",
+        optionsTitle: "Опции",
+        safetyHeader: "Безопасность",
+        transferHeader: "Передача",
+        optDeleteLabel: "--delete (зеркало)",
+        optDeleteHelp: "удалять на приёмнике файлы, которых больше нет в источнике",
+        optDeleteWarn: "удаляет файлы на той стороне - сначала запусти Preview",
+        optUpdateLabel: "-u обновление",
+        optUpdateHelp: "не трогать файлы, которые новее на приёмнике",
+        optCompressLabel: "-z сжатие",
+        optCompressHelp: "сжимать данные при передаче (полезно на медленной сети)",
+        optProgressLabel: "-P прогресс",
+        optProgressHelp: "показывать прогресс и хранить частичные файлы для докачки",
+        optStatsLabel: "--stats",
+        optStatsHelp: "печатать сводку по переносу с человекочитаемыми размерами",
+        optBwlimitLabel: "скорость",
+        optBwlimitHelp: "ограничить скорость в КБ/с; пусто = без лимита"
     )
 }

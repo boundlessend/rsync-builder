@@ -20,6 +20,12 @@ struct ContentView: View {
     @AppStorage("flagA") private var flagA = true
     @AppStorage("flagV") private var flagV = true
     @AppStorage("flagC") private var flagC = true
+    @AppStorage("optCompress") private var optCompress = false
+    @AppStorage("optProgress") private var optProgress = false
+    @AppStorage("optUpdate") private var optUpdate = false
+    @AppStorage("optDelete") private var optDelete = false
+    @AppStorage("optStats") private var optStats = false
+    @AppStorage("optBwlimit") private var optBwlimit = ""
 
     @State private var excludes: [ExcludeItem] = defaultExcludes
     @State private var newExclude = ""
@@ -27,6 +33,7 @@ struct ContentView: View {
     @State private var dropLocal = false
     @State private var startPulse = 0
     @State private var showExcludes = false
+    @State private var showOptions = false
     @StateObject private var terminal = TerminalWindow()
     @FocusState private var focus: Field?
 
@@ -47,11 +54,34 @@ struct ContentView: View {
             && !remotePath.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    private var options: RsyncOptions {
+        RsyncOptions(
+            archive: flagA, verbose: flagV, checksum: flagC,
+            compress: optCompress, progress: optProgress, update: optUpdate,
+            delete: optDelete, stats: optStats, dryRun: false, bwlimit: optBwlimit
+        )
+    }
+
+    // число активных дополнительных опций (для бейджа на кнопке)
+    private var activeOptionCount: Int {
+        [optCompress, optProgress, optUpdate, optDelete, optStats].filter { $0 }.count
+            + (optBwlimit.trimmingCharacters(in: .whitespaces).isEmpty ? 0 : 1)
+    }
+
     private var command: String {
         buildCommand(
-            direction: direction, flagA: flagA, flagV: flagV, flagC: flagC,
-            port: port, excludes: excludes, localPath: localPath,
-            userHost: userHost, remotePath: remotePath
+            direction: direction, options: options, port: port, excludes: excludes,
+            localPath: localPath, userHost: userHost, remotePath: remotePath
+        )
+    }
+
+    // та же команда, но с -n (dry-run) для Preview
+    private var previewCommand: String {
+        var o = options
+        o.dryRun = true
+        return buildCommand(
+            direction: direction, options: o, port: port, excludes: excludes,
+            localPath: localPath, userHost: userHost, remotePath: remotePath
         )
     }
 
@@ -122,11 +152,18 @@ struct ContentView: View {
                     .help(s.remoteHelp)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Toggle("-a", isOn: $flagA).accessibilityLabel(s.flagAA11y).help(s.flagAHelp)
                 Toggle("-v", isOn: $flagV).accessibilityLabel(s.flagVA11y).help(s.flagVHelp)
                 Toggle("-c", isOn: $flagC).accessibilityLabel(s.flagCA11y).help(s.flagCHelp)
                 Spacer()
+                Button { showOptions.toggle() } label: {
+                    HStack(spacing: 3) {
+                        Text(activeOptionCount > 0 ? "\(s.optionsTitle): \(activeOptionCount)" : s.optionsTitle)
+                        Image(systemName: "chevron.down").font(.caption2)
+                    }
+                }
+                .popover(isPresented: $showOptions, arrowEdge: .bottom) { optionsPopover }
                 Button { showExcludes.toggle() } label: {
                     HStack(spacing: 3) {
                         Text("\(s.excludeSection): \(enabledExcludeCount)")
@@ -171,6 +208,13 @@ struct ContentView: View {
             .fixedSize()
 
             Spacer()
+
+            Button { preview() } label: {
+                Image(systemName: "eye")
+            }
+            .disabled(!isComplete)
+            .help(s.previewHelp)
+            .accessibilityLabel(s.previewLabel)
 
             Button { copy() } label: {
                 Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
@@ -228,6 +272,40 @@ struct ContentView: View {
         .frame(width: 300)
     }
 
+    // поповер дополнительных опций rsync; у каждого переключателя своя подсказка (.help)
+    private var optionsPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(s.safetyHeader).font(.caption).foregroundStyle(.secondary)
+            Toggle(s.optDeleteLabel, isOn: $optDelete).help(s.optDeleteHelp)
+            if optDelete {
+                Text(s.optDeleteWarn).font(.caption2).foregroundStyle(.orange)
+            }
+            Toggle(s.optUpdateLabel, isOn: $optUpdate).help(s.optUpdateHelp)
+
+            Divider()
+
+            Text(s.transferHeader).font(.caption).foregroundStyle(.secondary)
+            Toggle(s.optCompressLabel, isOn: $optCompress).help(s.optCompressHelp)
+            Toggle(s.optProgressLabel, isOn: $optProgress).help(s.optProgressHelp)
+            Toggle(s.optStatsLabel, isOn: $optStats).help(s.optStatsHelp)
+            HStack(spacing: 6) {
+                Text(s.optBwlimitLabel)
+                TextField("", text: $optBwlimit)
+                    .frame(width: 70)
+                    .help(s.optBwlimitHelp)
+                    .onChange(of: optBwlimit) { _, new in
+                        let digits = new.filter(\.isNumber)
+                        if digits != new { optBwlimit = digits }
+                    }
+                Text("KB/s").foregroundStyle(.secondary)
+            }
+            .help(s.optBwlimitHelp)
+        }
+        .toggleStyle(.checkbox)
+        .padding(12)
+        .frame(width: 300)
+    }
+
     // пунктирная рамка drop-зоны (контрастнее при наведении)
     private var dropBorder: some View {
         RoundedRectangle(cornerRadius: 6)
@@ -238,6 +316,12 @@ struct ContentView: View {
     private func runCommand() {
         startPulse += 1
         terminal.run(command: command)
+    }
+
+    // Preview: запуск с -n (dry-run), ничего не меняет
+    private func preview() {
+        startPulse += 1
+        terminal.run(command: previewCommand)
     }
 
     private func addExclude() {

@@ -45,25 +45,48 @@ func shellQuote(_ arg: String) -> String {
     return "'" + arg.replacingOccurrences(of: "'", with: "'\\''") + "'"
 }
 
+// набор опций rsync (чекбоксы и поля интерфейса)
+struct RsyncOptions {
+    var archive: Bool   // -a
+    var verbose: Bool   // -v
+    var checksum: Bool  // -c
+    var compress: Bool  // -z
+    var progress: Bool  // -P
+    var update: Bool    // -u
+    var delete: Bool    // --delete
+    var stats: Bool     // --stats + -h
+    var dryRun: Bool    // -n (для Preview)
+    var bwlimit: String // --bwlimit=RATE (КБ/с), пусто = без лимита
+}
+
 // чистая функция сборки команды rsync
 func buildCommand(
     direction: Direction,
-    flagA: Bool,
-    flagV: Bool,
-    flagC: Bool,
+    options: RsyncOptions,
     port: String,
     excludes: [ExcludeItem],
     localPath: String,
     userHost: String,
     remotePath: String
 ) -> String {
-    var flags = ""
-    if flagA { flags += "a" }
-    if flagV { flags += "v" }
-    if flagC { flags += "c" }
+    // короткие флаги одним кластером
+    var short = ""
+    if options.archive { short += "a" }
+    if options.verbose { short += "v" }
+    if options.checksum { short += "c" }
+    if options.compress { short += "z" }
+    if options.update { short += "u" }
+    if options.progress { short += "P" }
+    if options.dryRun { short += "n" }
+    if options.stats { short += "h" }
 
     var parts: [String] = ["rsync"]
-    if !flags.isEmpty { parts.append("-" + flags) }
+    if !short.isEmpty { parts.append("-" + short) }
+    if options.delete { parts.append("--delete") }
+    if options.stats { parts.append("--stats") }
+
+    let rate = options.bwlimit.trimmingCharacters(in: .whitespaces)
+    if !rate.isEmpty { parts.append("--bwlimit=\(rate)") }
 
     let trimmedPort = port.trimmingCharacters(in: .whitespaces)
     if !trimmedPort.isEmpty, trimmedPort != "22" {
