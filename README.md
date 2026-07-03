@@ -1,31 +1,53 @@
 # rsync builder
 
-нативное окно macOS (SwiftUI): собирает команды rsync/scp для переноса файлов
-комп <-> сервер, показывает живую команду и копирует её в буфер для вставки в терминал
+A small native macOS app (SwiftUI) that helps you assemble `rsync` commands for
+moving files between your Mac and a server. It shows the live command, copies it
+to the clipboard, and can run it in an embedded terminal window.
 
-## сборка и запуск
+## Features
+
+- Upload / download direction with source ⇄ destination labels
+- Server profiles (`user@host`, port, remote path), saved locally
+- Drag a file or folder onto the local field to fill its full path
+- Toggle common flags (`-a`, `-v`, `-c`) and `--exclude` patterns
+- Live command with shell-safe quoting of paths
+- Copy to clipboard, or run in a separate embedded terminal (SSH password prompts work there)
+
+## Build & run
 
 ```sh
-./build.sh            # release-сборка rsync-builder.app
+./build.sh            # release build -> rsync-builder.app
 open rsync-builder.app
 ```
 
-## разработка с hot-reload
+Requires macOS 26+ (uses native Liquid Glass). No code signing; on first run allow it via Gatekeeper.
+
+## Development (hot reload)
 
 ```sh
-./dev.sh              # debug + -interposable, нужен запущенный InjectionIII.app
+./dev.sh              # debug build with -interposable
 ```
 
-## проверка логики
+Needs [InjectionIII](https://github.com/johnno1962/InjectionIII) running to apply
+SwiftUI edits live.
+
+## Logic check
 
 ```sh
 swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check && /tmp/rsync_check
 ```
 
-## зависимости
+## Dependencies
 
-- SwiftTerm - терминал в отдельном окне
-- Pow - анимации кнопок (spray/shine)
-- Defaults - хранение профилей серверов (example, deploy зашиты стартовыми)
-- Inject - hot-reload UI при разработке
-- Liquid Glass - нативный macOS 26, без зависимости
+- [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) - embedded terminal window
+- [Pow](https://github.com/EmergeTools/Pow) - button animations
+- [Defaults](https://github.com/sindresorhus/Defaults) - server profile persistence
+- [Inject](https://github.com/krzysztofzablocki/Inject) - SwiftUI hot reload
+- Liquid Glass - native macOS 26, no dependency
+
+Your real servers are never stored in source: source ships with an `example`
+profile, and profiles you save live only in local `UserDefaults`.
+
+## License
+
+BSD 3-Clause. See [LICENSE](LICENSE).

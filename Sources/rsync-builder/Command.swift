@@ -21,10 +21,9 @@ enum Direction: String, CaseIterable {
     case download = "Download"
 }
 
-// стартовые профили из rsync.docx
+// пример профиля; реальные серверы пользователь добавляет сам (хранятся локально в UserDefaults)
 let defaultProfiles: [ServerProfile] = [
-    ServerProfile(name: "example", userHost: "user@example.com", port: "22", remotePath: "~/app/"),
-    ServerProfile(name: "deploy", userHost: "deploy@server.example", port: "8022", remotePath: "~/app/"),
+    ServerProfile(name: "example", userHost: "user@example.com", port: "22", remotePath: "~/remote/"),
 ]
 
 let defaultExcludes: [ExcludeItem] = [
@@ -36,6 +35,15 @@ let defaultExcludes: [ExcludeItem] = [
     ExcludeItem(pattern: "logs", on: false),
     ExcludeItem(pattern: "google.json", on: false),
 ]
+
+// экранирование аргумента для shell: кавычим только при наличии небезопасных символов
+func shellQuote(_ arg: String) -> String {
+    let safe = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:@%+=~-")
+    if arg.unicodeScalars.allSatisfy({ safe.contains($0) }) {
+        return arg
+    }
+    return "'" + arg.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
 
 // чистая функция сборки команды rsync
 func buildCommand(
@@ -63,17 +71,18 @@ func buildCommand(
     }
 
     for ex in excludes where ex.on && !ex.pattern.trimmingCharacters(in: .whitespaces).isEmpty {
-        parts.append("--exclude='\(ex.pattern)'")
+        parts.append("--exclude=" + shellQuote(ex.pattern))
     }
 
-    let remote = "\(userHost):\(remotePath)"
+    let local = shellQuote(localPath)
+    let remote = shellQuote("\(userHost):\(remotePath)")
     switch direction {
     case .upload:
-        parts.append(localPath)
+        parts.append(local)
         parts.append(remote)
     case .download:
         parts.append(remote)
-        parts.append(localPath)
+        parts.append(local)
     }
-    return parts.joined(separator: " ")
+    return parts.filter { !$0.isEmpty }.joined(separator: " ")
 }

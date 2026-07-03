@@ -9,10 +9,10 @@ struct ContentView: View {
     @ObserveInjection private var inject
 
     @State private var direction: Direction = .upload
-    @State private var userHost = "user@example.com"
-    @State private var port = "22"
-    @State private var localPath = "/Users/me/dev/"
-    @State private var remotePath = "~/app/"
+    @State private var userHost = defaultProfiles.first?.userHost ?? ""
+    @State private var port = defaultProfiles.first?.port ?? "22"
+    @State private var localPath = ""
+    @State private var remotePath = defaultProfiles.first?.remotePath ?? "~/"
     @State private var flagA = true
     @State private var flagV = true
     @State private var flagC = true
@@ -20,7 +20,6 @@ struct ContentView: View {
     @State private var newExclude = ""
     @State private var copied = false
     @State private var dropLocal = false
-    @State private var dropRemote = false
     @StateObject private var terminal = TerminalWindow()
     @State private var startPulse = 0
 
@@ -63,7 +62,12 @@ struct ContentView: View {
 
             HStack(spacing: 6) {
                 Text("Порт SSH").frame(width: 70, alignment: .leading)
-                TextField("22", text: $port).textFieldStyle(.roundedBorder).frame(width: 80)
+                TextField("22", text: $port)
+                    .textFieldStyle(.roundedBorder).frame(width: 80)
+                    .onChange(of: port) { _, new in
+                        let digits = new.filter(\.isNumber)
+                        if digits != new { port = digits }
+                    }
             }
 
             // локальная сторона: широкая drop-зона + вставка + Обзор
@@ -73,6 +77,7 @@ struct ContentView: View {
                     TextField("перетащи файл сюда или вставь путь", text: $localPath, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1...3)
+                        .help("перетащи файл/папку или впиши путь. С '/' в конце папки копируется её содержимое, без '/' - сама папка")
                     Button("Обзор") { browse() }
                 }
                 .padding(6)
@@ -85,20 +90,13 @@ struct ContentView: View {
                 } isTargeted: { dropLocal = $0 }
             }
 
-            // серверная сторона: широкая зона + вставка (обычно user@host:путь)
+            // серверная сторона: путь на сервере (ввод/вставка; перетаскивание дало бы локальный путь, поэтому его тут нет)
             VStack(alignment: .leading, spacing: 4) {
                 Text(remoteLabel).font(.subheadline).foregroundStyle(.secondary)
-                TextField("путь на сервере (или перетащи файл)", text: $remotePath, axis: .vertical)
+                TextField("путь на сервере, напр. ~/app/", text: $remotePath, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...3)
-                    .padding(6)
-                    .background(dropRemote ? Color.accentColor.opacity(0.15) : .clear)
-                    .overlay(dropBorder)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let u = urls.first else { return false }
-                        remotePath = u.path
-                        return true
-                    } isTargeted: { dropRemote = $0 }
+                    .help("путь на удалённой машине. С '/' в конце - содержимое, без - сама папка")
             }
 
             HStack(spacing: 16) {

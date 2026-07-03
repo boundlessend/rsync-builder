@@ -2,10 +2,14 @@ import AppKit
 import SwiftTerm
 
 // отдельное окно с терминалом: печатает команду и запускает, показывает вывод
-final class TerminalWindow: ObservableObject {
+final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
     private let view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 760, height: 440))
     private var window: NSWindow?
     private var started = false
+
+    init() {
+        view.processDelegate = self
+    }
 
     func run(command: String) {
         ensureWindow()
@@ -35,4 +39,14 @@ final class TerminalWindow: ObservableObject {
         w.center()
         window = w
     }
+
+    // MARK: LocalProcessTerminalViewDelegate
+    // шелл завершился (exit / умер) - сбрасываем флаг, следующий запуск поднимет новый
+    func processTerminated(source: TerminalView, exitCode: Int32?) {
+        started = false
+    }
+
+    func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
+    func setTerminalTitle(source: LocalProcessTerminalView, title: String) {}
+    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
 }

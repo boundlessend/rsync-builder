@@ -1,35 +1,49 @@
 // прогон: swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check && /tmp/rsync_check
 import Foundation
 
-let ex = defaultExcludes  // .venv .git .env __pycache__ .DS_Store вкл, logs google.json выкл
-
-// upload, порт 22 -> без -e, направление local -> remote
+// upload, порт 22 -> без -e; простые аргументы без кавычек
 let up = buildCommand(
     direction: .upload, flagA: true, flagV: true, flagC: true,
     port: "22", excludes: [ExcludeItem(pattern: ".venv", on: true)],
-    localPath: "/Users/me/dev/app", userHost: "user@example.com",
+    localPath: "/Users/me/dev/project", userHost: "user@example.com",
     remotePath: "~/app/"
 )
-assert(up == "rsync -avc --exclude='.venv' /Users/me/dev/app user@example.com:~/app/", up)
+assert(up == "rsync -avc --exclude=.venv /Users/me/dev/project user@example.com:~/app/", up)
 
 // нестандартный порт -> добавляется -e "ssh -p 8022"
 let withPort = buildCommand(
     direction: .upload, flagA: true, flagV: true, flagC: false,
     port: "8022", excludes: [ExcludeItem(pattern: ".git", on: true), ExcludeItem(pattern: "logs", on: false)],
-    localPath: "/Users/me/dev/app/", userHost: "deploy@server.example",
+    localPath: "/Users/me/dev/project/", userHost: "deploy@server.example",
     remotePath: "~/app/"
 )
-assert(withPort == "rsync -av -e \"ssh -p 8022\" --exclude='.git' /Users/me/dev/app/ deploy@server.example:~/app/", withPort)
+assert(withPort == "rsync -av -e \"ssh -p 8022\" --exclude=.git /Users/me/dev/project/ deploy@server.example:~/app/", withPort)
 
 // download -> порядок меняется: remote -> local
 let down = buildCommand(
     direction: .download, flagA: true, flagV: true, flagC: true,
     port: "22", excludes: [],
     localPath: "~/Downloads/", userHost: "user@example.com",
-    remotePath: "~/app/app/scripts/data/x.json"
+    remotePath: "/srv/app/data/x.json"
 )
-assert(down == "rsync -avc user@example.com:~/app/app/scripts/data/x.json ~/Downloads/", down)
+assert(down == "rsync -avc user@example.com:/srv/app/data/x.json ~/Downloads/", down)
 
-// выключенные исключения не попадают в команду
-_ = ex
+// путь с пробелом -> закавычивается
+let spaced = buildCommand(
+    direction: .upload, flagA: true, flagV: true, flagC: true,
+    port: "22", excludes: [],
+    localPath: "/Users/me/My Project", userHost: "user@example.com",
+    remotePath: "~/x/"
+)
+assert(spaced == "rsync -avc '/Users/me/My Project' user@example.com:~/x/", spaced)
+
+// инъекция в путь -> обезврежена кавычками, а не выполняется
+let injected = buildCommand(
+    direction: .upload, flagA: true, flagV: true, flagC: true,
+    port: "22", excludes: [ExcludeItem(pattern: "a b", on: true)],
+    localPath: "/tmp/x; rm -rf ~", userHost: "user@example.com",
+    remotePath: "~/x/"
+)
+assert(injected == "rsync -avc --exclude='a b' '/tmp/x; rm -rf ~' user@example.com:~/x/", injected)
+
 print("OK: все проверки пройдены")
