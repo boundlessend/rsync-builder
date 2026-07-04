@@ -11,9 +11,33 @@ enum SuccessMode {
     case toast, showOutput
 }
 
+// пишет пароль в 0600-файл и хелпер, читающий его; возвращает путь хелпера для SSH_ASKPASS.
+// имя случайное (не предсказуемое); пароль не попадает в окружение процесса
+private func writeAskpass(password: String) -> String {
+    let token = UUID().uuidString
+    let dir = NSTemporaryDirectory()
+    let pwFile = dir + "rb-\(token).pw"
+    let helper = dir + "rb-\(token).sh"
+    let fm = FileManager.default
+    fm.createFile(atPath: pwFile, contents: Data(password.utf8), attributes: [.posixPermissions: 0o600])
+    fm.createFile(
+        atPath: helper, contents: Data(askpassScript(passwordFile: pwFile).utf8),
+        attributes: [.posixPermissions: 0o700])
+    return helper
+}
+
+// удаляет хелпер и парный .pw после запуска
+private func cleanupAskpass(helper: String) {
+    guard !helper.isEmpty, helper.hasSuffix(".sh") else { return }
+    let fm = FileManager.default
+    try? fm.removeItem(atPath: helper)
+    try? fm.removeItem(atPath: String(helper.dropLast(3)) + ".pw")
+}
+
 // запуск rsync через Process без терминала; состояние публикуется, UI рисует ContentView (крутилка в кнопке, баннер результата).
-// пароль (если задан) подаётся ssh через SSH_ASKPASS и на диск не пишется - только в окружении дочернего процесса.
+// пароль подаётся ssh через SSH_ASKPASS из 0600-файла и на диск попадает лишь на время запуска, не в окружение.
 // ponytail: не эмулятор терминала; -P прогресс с \r в выводе рисуется грубовато, для живого прогресса есть fallback "в терминале"
+@MainActor
 final class CommandRunner: ObservableObject {
     @Published private(set) var state: RunState = .idle
     @Published private(set) var output = ""
@@ -31,12 +55,11 @@ final class CommandRunner: ObservableObject {
         state = .running
 
         let (cmd, rsh) = runTransport(command: command, port: port)
+        let askpass = password.isEmpty ? "" : writeAskpass(password: password)
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/sh")
         proc.arguments = ["-c", cmd]
-        proc.environment = runEnvironment(
-            base: ProcessInfo.processInfo.environment, password: password,
-            rsh: rsh, askpassPath: askpassHelperPath())
+        proc.environment = runEnvironment(base: ProcessInfo.processInfo.environment, rsh: rsh, askpass: askpass)
 
         let pipe = Pipe()
         proc.standardOutput = pipe
@@ -44,18 +67,24 @@ final class CommandRunner: ObservableObject {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            DispatchQueue.main.async { self?.output += text }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.output += text } }
         }
         proc.terminationHandler = { [weak self] finished in
             pipe.fileHandleForReading.readabilityHandler = nil
+            cleanupAskpass(helper: askpass)
+            let status = finished.terminationStatus
             DispatchQueue.main.async {
-                guard let self, self.generation == gen else { return }  // отменён или запущен новый - игнор
-                self.state = .finished(finished.terminationStatus)
-                self.process = nil
-                // успех обычного Run: короткая галочка-уведомление, затем само гаснет
-                if finished.terminationStatus == 0, self.successMode == .toast {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        if self.generation == gen, self.state == .finished(0) { self.dismiss() }
+                MainActor.assumeIsolated {
+                    guard let self, self.generation == gen else { return }  // отменён или запущен новый - игнор
+                    self.state = .finished(status)
+                    self.process = nil
+                    // успех обычного Run: короткая галочка-уведомление, затем само гаснет
+                    if status == 0, self.successMode == .toast {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            MainActor.assumeIsolated {
+                                if self.generation == gen, self.state == .finished(0) { self.dismiss() }
+                            }
+                        }
                     }
                 }
             }
@@ -64,6 +93,7 @@ final class CommandRunner: ObservableObject {
             try proc.run()
             process = proc
         } catch {
+            cleanupAskpass(helper: askpass)
             output = error.localizedDescription
             state = .finished(127)
         }
@@ -82,16 +112,5 @@ final class CommandRunner: ObservableObject {
     func dismiss() {
         state = .idle
         output = ""
-    }
-
-    // хелпер для SSH_ASKPASS: печатает пароль из переменной окружения. Секрета в файле нет, только чтение env
-    private func askpassHelperPath() -> String {
-        let path = NSTemporaryDirectory() + "rsync-builder-askpass.sh"
-        FileManager.default.createFile(
-            atPath: path,
-            contents: askpassScript.data(using: .utf8),
-            attributes: [.posixPermissions: 0o700]
-        )
-        return path
     }
 }

@@ -144,20 +144,21 @@ func runTransport(command: String, port: String) -> (command: String, rsh: Strin
     return (command, rsh)
 }
 
-// содержимое хелпера SSH_ASKPASS: печатает пароль из переменной окружения (секрета в самом файле нет)
-let askpassScript = "#!/bin/sh\nprintf '%s\\n' \"$RSYNC_BUILDER_PASS\"\n"
+// хелпер SSH_ASKPASS читает пароль из 0600-файла; пароль в окружение не кладём (иначе виден в `ps eww`)
+func askpassScript(passwordFile: String) -> String {
+    "#!/bin/sh\ncat \(shellQuote(passwordFile))\n"
+}
 
-// окружение для запуска rsync через Process: PATH + транспорт, а при заданном пароле - проводка SSH_ASKPASS.
+// окружение для запуска rsync через Process: PATH + транспорт, а при непустом askpass - проводка SSH_ASKPASS.
 // чистая функция: base не мутируется, возвращается новый словарь
-func runEnvironment(base: [String: String], password: String, rsh: String, askpassPath: String) -> [String: String] {
+func runEnvironment(base: [String: String], rsh: String, askpass: String) -> [String: String] {
     var env = base
     env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     env["RSYNC_RSH"] = rsh
-    if !password.isEmpty {
-        env["SSH_ASKPASS"] = askpassPath
+    if !askpass.isEmpty {
+        env["SSH_ASKPASS"] = askpass
         env["SSH_ASKPASS_REQUIRE"] = "force"
         env["DISPLAY"] = env["DISPLAY"] ?? ":0"
-        env["RSYNC_BUILDER_PASS"] = password
     }
     return env
 }

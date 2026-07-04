@@ -32,8 +32,7 @@ struct Smoke {
         fm.createFile(atPath: src + "b.txt", contents: Data("yo".utf8))
 
         let (cmd, rsh) = runTransport(command: "rsync -av \(src) \(dst)", port: "22")
-        let env = runEnvironment(
-            base: ProcessInfo.processInfo.environment, password: "", rsh: rsh, askpassPath: "")
+        let env = runEnvironment(base: ProcessInfo.processInfo.environment, rsh: rsh, askpass: "")
         let r1 = sh(cmd, env: env)
         assert(r1.code == 0, "rsync failed: \(r1.out)")
         assert(
@@ -43,27 +42,28 @@ struct Smoke {
         print("smoke 1 ok: локальный rsync прошёл, файлы скопированы, вывод стримится")
 
         // --- Тест 2: пароль реально доезжает до потребителя по протоколу SSH_ASKPASS ---
-        // ssh при пароле запускает $SSH_ASKPASS с промптом и читает пароль из stdout - имитируем этого потребителя
+        // пароль лежит в 0600-файле, хелпер его читает; ssh запускает $SSH_ASKPASS и берёт пароль из stdout
+        let secret = "p@ss w0rd $ecret!"  // спецсимволы: проверяем, что ничего не ломается по пути
+        let pwFile = base + "secret.pw"
+        try! secret.write(toFile: pwFile, atomically: true, encoding: .utf8)
+        try! fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: pwFile)
         let askpath = base + "askpass.sh"
-        try! askpassScript.write(toFile: askpath, atomically: true, encoding: .utf8)
+        try! askpassScript(passwordFile: pwFile).write(toFile: askpath, atomically: true, encoding: .utf8)
         try! fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: askpath)
 
-        let secret = "p@ss w0rd $ecret!"  // спецсимволы: проверяем, что ничего не ломается по пути
         let outfile = base + "got.txt"
-        var penv = runEnvironment(
-            base: ProcessInfo.processInfo.environment, password: secret, rsh: "ssh", askpassPath: askpath)
+        var penv = runEnvironment(base: ProcessInfo.processInfo.environment, rsh: "ssh", askpass: askpath)
         penv["OUTFILE"] = outfile
         let r2 = sh("pw=$(\"$SSH_ASKPASS\" \"Password:\"); printf '%s' \"$pw\" > \"$OUTFILE\"", env: penv)
         assert(r2.code == 0, "consumer failed: \(r2.out)")
         let got = (try? String(contentsOfFile: outfile, encoding: .utf8)) ?? ""
         assert(got == secret, "password mismatch: got [\(got)] want [\(secret)]")
-        print("smoke 2 ok: пароль доставлен через SSH_ASKPASS в точности, включая спецсимволы")
+        assert(penv["RSYNC_BUILDER_PASS"] == nil, "password must not be in the environment")
+        print("smoke 2 ok: пароль доставлен через файл + SSH_ASKPASS, в окружении его нет")
 
-        // --- Тест 3: пустой пароль - проводка askpass не выставляется (секрет/переменные не текут) ---
-        let noPassEnv = runEnvironment(base: [:], password: "", rsh: "ssh", askpassPath: "/x")
-        assert(
-            noPassEnv["SSH_ASKPASS"] == nil && noPassEnv["RSYNC_BUILDER_PASS"] == nil,
-            "askpass wiring leaked on empty password")
+        // --- Тест 3: пустой askpass - проводка не выставляется ---
+        let noPassEnv = runEnvironment(base: [:], rsh: "ssh", askpass: "")
+        assert(noPassEnv["SSH_ASKPASS"] == nil, "askpass wiring leaked with empty askpass")
         print("smoke 3 ok: без пароля проводка askpass не выставляется")
 
         print("OK: смоук-тесты пройдены")
