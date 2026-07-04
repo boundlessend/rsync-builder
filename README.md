@@ -40,6 +40,7 @@ copies it to the clipboard, or runs it in a terminal.
 - Live command with shell-safe quoting of paths
 - Copy to clipboard, or run in a separate terminal window (SSH password prompts work there)
 - Interface language (English / Русский) switchable in Settings
+- Check for updates in Settings: compares your version against the latest GitHub release
 
 ## Install
 

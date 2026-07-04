@@ -35,6 +35,8 @@ being a general file manager.
   password/passphrase prompts work.
 - Buttons in a top bar (direction + Copy + Run + "•••" menu with Settings / About / Quit).
 - Localization EN / RU, language switch in the Settings window (default EN).
+- "Check for updates" in Settings: queries the GitHub Releases API (native `URLSession`,
+  no new dependency) and compares `tag_name` against the app version.
 - Native Liquid Glass, Pow button effects (gated by Reduce Motion), accessibility
   labels, `@FocusState`, incomplete-command guard (Run disabled until server + both paths).
 - Form state persisted between launches (`@AppStorage`); server profiles persisted
