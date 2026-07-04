@@ -97,7 +97,7 @@ func buildCommand(
     if options.noOwnerGroup { parts.append("--no-owner --no-group") }
     if options.mkpath { parts.append("--mkpath") }
     let chmod = options.chmod.trimmingCharacters(in: .whitespaces)
-    if !chmod.isEmpty { parts.append("--chmod=\(chmod)") }
+    if !chmod.isEmpty { parts.append("--chmod=\(shellQuote(chmod))") }
 
     let trimmedPort = port.trimmingCharacters(in: .whitespaces)
     if !trimmedPort.isEmpty, trimmedPort != "22" {

@@ -89,7 +89,7 @@ let h = buildCommand(
     direction: .upload, options: helpers, port: "22", excludes: [],
     localPath: "/Users/me/x", userHost: "user@example.com", remotePath: "~/app/"
 )
-assert(h == "rsync -avc --rsync-path=\"sudo rsync\" --no-owner --no-group --mkpath --chmod=Du=rwx,go=rx /Users/me/x user@example.com:~/app/", h)
+assert(h == "rsync -avc --rsync-path=\"sudo rsync\" --no-owner --no-group --mkpath --chmod='Du=rwx,go=rx' /Users/me/x user@example.com:~/app/", h)
 
 // пост-команда (upload) -> && ssh с портом и кавычками вокруг команды
 var post = avc
