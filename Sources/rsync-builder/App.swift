@@ -377,13 +377,15 @@ struct ContentView: View {
 
     private func runCommand() {
         startPulse += 1
-        runner.run(command: command, port: port, password: password, title: s.runWindowTitle, labels: s)
+        runner.run(
+            command: command, port: port, password: password, labels: s, successMode: .toast)
     }
 
-    // Preview: запуск с -n (dry-run), ничего не меняет
+    // Preview: запуск с -n (dry-run), ничего не меняет; вывод и есть цель - показываем его
     private func preview() {
         startPulse += 1
-        runner.run(command: previewCommand, port: port, password: password, title: s.runWindowTitle, labels: s)
+        runner.run(
+            command: previewCommand, port: port, password: password, labels: s, successMode: .showOutput)
     }
 
     // запасной путь: терминал для случаев, которые полем не решить (2FA, подтверждение host key)
