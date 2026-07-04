@@ -1,20 +1,38 @@
 import AppKit
 import Foundation
+import SwiftUI
 
-// запуск rsync через Process без терминала: вывод стримится в нативное окно.
+enum RunState: Equatable {
+    case idle, running
+    case finished(Int32)
+}
+
+// запуск rsync через Process без терминала: статус показывается компактной нативной плашкой.
 // пароль (если задан) подаётся ssh через SSH_ASKPASS и на диск не пишется - только в окружении дочернего процесса.
-// ponytail: не эмулятор терминала; -P прогресс с \r рисуется грубовато, для живого прогресса есть fallback "в терминале"
+// ponytail: не эмулятор терминала; -P прогресс с \r в «Подробностях» рисуется грубовато, для живого прогресса есть fallback "в терминале"
 final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
+    @Published private(set) var state: RunState = .idle
+    @Published private(set) var output = ""
+    private(set) var labels = L10n.en
     private var window: NSWindow?
-    private let textView = NSTextView()
     private var process: Process?
-    private let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
 
-    func run(command: String, port: String, password: String, title: String) {
+    // при успехе - строка rsync "sent ... received ..."; при ошибке - последняя непустая строка (обычно текст ошибки)
+    var summaryLine: String? {
+        let lines = output.split(separator: "\n").map(String.init)
+        if case .finished(let code) = state, code == 0 {
+            return lines.last(where: { $0.hasPrefix("sent ") && $0.contains("received") })
+        }
+        return lines.last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+    }
+
+    func run(command: String, port: String, password: String, title: String, labels: L10n) {
         // повторный запуск: гасим прошлый процесс, чтобы не наслаивался
         if let old = process, old.isRunning { old.terminate() }
+        self.labels = labels
+        output = ""
+        state = .running
         ensureWindow(title: title)
-        clear()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -40,12 +58,12 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            DispatchQueue.main.async { self?.append(text) }
+            DispatchQueue.main.async { self?.output += text }
         }
         proc.terminationHandler = { [weak self] finished in
             pipe.fileHandleForReading.readabilityHandler = nil
             DispatchQueue.main.async {
-                self?.append("\n[exit \(finished.terminationStatus)]\n")
+                self?.state = .finished(finished.terminationStatus)
                 if self?.process === finished { self?.process = nil }
             }
         }
@@ -53,7 +71,8 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
             try proc.run()
             process = proc
         } catch {
-            append("failed to start: \(error.localizedDescription)\n")
+            output = error.localizedDescription
+            state = .finished(127)
         }
     }
 
@@ -69,44 +88,15 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         return path
     }
 
-    private func append(_ text: String) {
-        textView.textStorage?.append(
-            NSAttributedString(string: text, attributes: [.font: mono, .foregroundColor: NSColor.textColor])
-        )
-        textView.scrollToEndOfDocument(nil)
-    }
-
-    private func clear() {
-        textView.textStorage?.setAttributedString(NSAttributedString(string: ""))
-    }
-
     private func ensureWindow(title: String) {
         if let w = window {
             w.title = title
             return
         }
-        let rect = NSRect(x: 0, y: 0, width: 760, height: 440)
-        let scroll = NSScrollView(frame: rect)
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .noBorder
-
-        textView.isEditable = false
-        textView.isRichText = false
-        textView.font = mono
-        textView.textContainerInset = NSSize(width: 6, height: 6)
-        textView.autoresizingMask = [.width]
-        textView.isVerticallyResizable = true
-        textView.textContainer?.widthTracksTextView = true
-        scroll.documentView = textView
-
-        let w = NSWindow(
-            contentRect: rect,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
+        let host = NSHostingController(rootView: RunStatusView(runner: self))
+        let w = NSWindow(contentViewController: host)
+        w.styleMask = [.titled, .closable, .miniaturizable]
         w.title = title
-        w.contentView = scroll
         w.isReleasedWhenClosed = false
         w.delegate = self
         w.center()
@@ -116,5 +106,55 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
     // окно закрыли - гасим процесс, чтобы rsync не работал вслепую в фоне
     func windowWillClose(_ notification: Notification) {
         if let p = process, p.isRunning { p.terminate() }
+    }
+}
+
+// компактная плашка статуса: крутилка пока идёт, затем итог + раскрывашка с полным логом
+struct RunStatusView: View {
+    @ObservedObject var runner: CommandRunner
+    @State private var showDetails = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch runner.state {
+            case .idle, .running:
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(runner.labels.runRunning).font(.headline)
+                }
+            case .finished(let code):
+                HStack(spacing: 10) {
+                    Image(systemName: code == 0 ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                        .foregroundStyle(code == 0 ? .green : .red)
+                        .font(.title)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(code == 0 ? runner.labels.runDone : "\(runner.labels.runFailed) (exit \(code))")
+                            .font(.headline)
+                        if let sub = runner.summaryLine {
+                            Text(sub)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .lineLimit(3)
+                        }
+                    }
+                }
+            }
+
+            if !runner.output.isEmpty {
+                DisclosureGroup(runner.labels.runDetails, isExpanded: $showDetails) {
+                    ScrollView {
+                        Text(runner.output)
+                            .font(.system(.caption2, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 180)
+                }
+                .font(.caption)
+            }
+        }
+        .padding(16)
+        .frame(width: 380, alignment: .leading)
     }
 }
