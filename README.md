@@ -64,8 +64,9 @@ open rsync-builder.app
 ./dev.sh              # debug build with -interposable
 ```
 
-Needs [InjectionIII](https://github.com/johnno1962/InjectionIII) running to apply
-SwiftUI edits live.
+With [InjectionIII](https://github.com/johnno1962/InjectionIII) running, method-body
+edits are hot-swapped at runtime. There is no `Inject` dependency, so SwiftUI views
+do not auto-refresh - it is a plain debug build plus `-interposable`.
 
 ## Logic check
 
@@ -78,7 +79,6 @@ swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check 
 - [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) - terminal window for running the command
 - [Pow](https://github.com/EmergeTools/Pow) - button animations
 - [Defaults](https://github.com/sindresorhus/Defaults) - server profile persistence
-- [Inject](https://github.com/krzysztofzablocki/Inject) - SwiftUI hot reload
 - Liquid Glass - native macOS 26, no dependency
 
 Your real servers are never stored in source: the code ships with a single

@@ -36,11 +36,12 @@ being a general file manager.
 - Buttons in a top bar (direction + Copy + Run + "•••" menu with Settings / About / Quit).
 - Localization EN / RU, language switch in the Settings window (default EN).
 - "Check for updates" in Settings: queries the GitHub Releases API (native `URLSession`,
-  no new dependency) and compares `tag_name` against the app version.
+  no new dependency) and compares `tag_name` against the app version. A silent auto-check
+  runs at most once a day and surfaces only when an update is available.
 - Native Liquid Glass, Pow button effects (gated by Reduce Motion), accessibility
   labels, `@FocusState`, incomplete-command guard (Run disabled until server + both paths).
-- Form state persisted between launches (`@AppStorage`); server profiles persisted
-  via Defaults; real servers live only in local `UserDefaults`, never in source.
+- Form state persisted between launches (`@AppStorage`); server profiles and exclude
+  list persisted via Defaults; real servers live only in local `UserDefaults`, never in source.
 
 ### Architecture
 - `Command.swift`: pure `buildCommand(...)`, `shellQuote`, `ServerProfile`, `ExcludeItem`,
@@ -49,7 +50,7 @@ being a general file manager.
 - `Terminal.swift`: `TerminalWindow` (SwiftTerm run window).
 - `Persistence.swift`: Defaults key for profiles.
 - `Localization.swift`, `Settings.swift`, `Menu.swift`.
-- Deps: SwiftTerm, Pow, Defaults, Inject. Requires macOS 26+.
+- Deps: SwiftTerm, Pow, Defaults. Requires macOS 26+.
 - Tests: assert-based logic check for `buildCommand` (`tests/main.swift`).
 - CI: `ci` (build + logic test), `lint` (swift-format, non-blocking), `release`
   (DMG on tag `v*`), `stale`, `dependency-review`. Public repo, BSD-3.

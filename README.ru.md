@@ -64,8 +64,9 @@ open rsync-builder.app
 ./dev.sh              # debug-сборка с -interposable
 ```
 
-Нужен запущенный [InjectionIII](https://github.com/johnno1962/InjectionIII) для применения
-правок SwiftUI на лету.
+С запущенным [InjectionIII](https://github.com/johnno1962/InjectionIII) правки тел методов
+подхватываются на лету. Зависимости `Inject` нет, поэтому SwiftUI-вью не обновляются
+автоматически - это просто debug-сборка с `-interposable`.
 
 ## Проверка логики
 
@@ -78,7 +79,6 @@ swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check 
 - [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) - окно терминала для запуска команды
 - [Pow](https://github.com/EmergeTools/Pow) - анимации кнопок
 - [Defaults](https://github.com/sindresorhus/Defaults) - хранение профилей серверов
-- [Inject](https://github.com/krzysztofzablocki/Inject) - hot reload SwiftUI
 - Liquid Glass - нативный macOS 26, без зависимости
 
 Твои реальные серверы не хранятся в исходниках: в коде только один профиль `example`,
