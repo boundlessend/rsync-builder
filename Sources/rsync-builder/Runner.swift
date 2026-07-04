@@ -52,6 +52,12 @@ final class CommandRunner: ObservableObject {
                 guard let self, self.generation == gen else { return }  // отменён или запущен новый - игнор
                 self.state = .finished(finished.terminationStatus)
                 self.process = nil
+                // успех обычного Run: короткая галочка-уведомление, затем само гаснет
+                if finished.terminationStatus == 0, self.successMode == .toast {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        if self.generation == gen, self.state == .finished(0) { self.dismiss() }
+                    }
+                }
             }
         }
         do {

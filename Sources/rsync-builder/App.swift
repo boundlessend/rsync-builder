@@ -213,10 +213,12 @@ struct ContentView: View {
 
             if showResult {
                 resultBanner
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
         .padding(12)
         .frame(width: 460)
+        .animation(.easeInOut(duration: 0.2), value: showResult)
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
             focus = .server
@@ -398,7 +400,7 @@ struct ContentView: View {
                 .buttonStyle(.plain).foregroundStyle(.secondary)
                 .accessibilityLabel(s.runClose)
             }
-            if !runner.output.isEmpty {
+            if !runner.output.isEmpty && (failed || runner.successMode == .showOutput) {
                 ScrollView {
                     Text(runner.output)
                         .font(.system(.caption2, design: .monospaced))
@@ -453,11 +455,9 @@ struct ContentView: View {
         if isRunning { runner.cancel() } else { preview() }
     }
 
-    // баннер результата показываем при ошибке, а для Preview - и при успехе (там вывод и есть цель)
+    // баннер результата показываем на любой финал: успех - короткая галочка, ошибка/Preview - с выводом
     private var showResult: Bool {
-        if case .finished(let code) = runner.state {
-            return code != 0 || runner.successMode == .showOutput
-        }
+        if case .finished = runner.state { return true }
         return false
     }
 
