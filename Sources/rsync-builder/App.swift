@@ -210,6 +210,10 @@ struct ContentView: View {
                 Label(s.incompleteWarning, systemImage: "exclamationmark.triangle")
                     .font(.caption2).foregroundStyle(.secondary)
             }
+
+            if showResult {
+                resultBanner
+            }
         }
         .padding(12)
         .frame(width: 460)
@@ -234,11 +238,15 @@ struct ContentView: View {
             Spacer()
 
             Button {
-                preview()
+                previewOrCancel()
             } label: {
-                Image(systemName: "eye")
+                if isRunning && runner.successMode == .showOutput {
+                    ProgressView().controlSize(.small).accessibilityLabel(s.runRunning)
+                } else {
+                    Image(systemName: "eye")
+                }
             }
-            .disabled(!isComplete)
+            .disabled(!isComplete || (isRunning && runner.successMode == .toast))
             .help(s.previewHelp)
             .accessibilityLabel(s.previewLabel)
 
@@ -255,13 +263,17 @@ struct ContentView: View {
                 }, value: copied, isEnabled: copied && !reduceMotion)
 
             Button {
-                runCommand()
+                runOrCancel()
             } label: {
-                Label(s.run, systemImage: "play.fill")
+                if isRunning && runner.successMode == .toast {
+                    ProgressView().controlSize(.small).tint(.white).accessibilityLabel(s.runRunning)
+                } else {
+                    Label(s.run, systemImage: "play.fill")
+                }
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: .command)
-            .disabled(!isComplete)
+            .disabled(!isComplete || (isRunning && runner.successMode == .showOutput))
             .help(s.runHelp)
             .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
 
@@ -368,6 +380,50 @@ struct ContentView: View {
         .padding(12)
     }
 
+    // небольшое уведомление-баннер внутри панели: итог запуска (ошибка или вывод Preview)
+    private var resultBanner: some View {
+        let failed: Bool
+        if case .finished(let code) = runner.state { failed = code != 0 } else { failed = false }
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: failed ? "xmark.octagon.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(failed ? .red : .green)
+                Text(resultTitle).font(.callout).bold()
+                Spacer()
+                Button {
+                    runner.dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .accessibilityLabel(s.runClose)
+            }
+            if !runner.output.isEmpty {
+                ScrollView {
+                    Text(runner.output)
+                        .font(.system(.caption2, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 150)
+                .padding(6)
+                .background(.background.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder((failed ? Color.red : Color.green).opacity(0.4)))
+    }
+
+    private var resultTitle: String {
+        if case .finished(let code) = runner.state {
+            return code == 0 ? s.runDone : "\(s.runFailed) (exit \(code))"
+        }
+        return ""
+    }
+
     // пунктирная рамка drop-зоны (контрастнее при наведении)
     private var dropBorder: some View {
         RoundedRectangle(cornerRadius: 6)
@@ -377,15 +433,32 @@ struct ContentView: View {
 
     private func runCommand() {
         startPulse += 1
-        runner.run(
-            command: command, port: port, password: password, labels: s, successMode: .toast)
+        runner.run(command: command, port: port, password: password, successMode: .toast)
     }
 
     // Preview: запуск с -n (dry-run), ничего не меняет; вывод и есть цель - показываем его
     private func preview() {
         startPulse += 1
-        runner.run(
-            command: previewCommand, port: port, password: password, labels: s, successMode: .showOutput)
+        runner.run(command: previewCommand, port: port, password: password, successMode: .showOutput)
+    }
+
+    // Run/Preview на ходу превращаются в отмену, пока идёт их же запуск
+    private var isRunning: Bool { runner.state == .running }
+
+    private func runOrCancel() {
+        if isRunning { runner.cancel() } else { runCommand() }
+    }
+
+    private func previewOrCancel() {
+        if isRunning { runner.cancel() } else { preview() }
+    }
+
+    // баннер результата показываем при ошибке, а для Preview - и при успехе (там вывод и есть цель)
+    private var showResult: Bool {
+        if case .finished(let code) = runner.state {
+            return code != 0 || runner.successMode == .showOutput
+        }
+        return false
     }
 
     // запасной путь: терминал для случаев, которые полем не решить (2FA, подтверждение host key)
