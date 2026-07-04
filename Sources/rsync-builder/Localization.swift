@@ -30,7 +30,7 @@ struct L10n {
     let updateAvailable, updateOpenRelease, updateFailed: String
     let passwordLabel, passwordPlaceholder, passwordHelp: String
     let runInTerminalItem, runWindowTitle: String
-    let runRunning, runDone, runFailed, runDetails: String
+    let runRunning, runDone, runFailed: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -117,8 +117,7 @@ struct L10n {
         runWindowTitle: "Run - rsync builder",
         runRunning: "Running…",
         runDone: "Done",
-        runFailed: "Failed",
-        runDetails: "Details"
+        runFailed: "Failed"
     )
 
     static let ru = L10n(
@@ -204,7 +203,6 @@ struct L10n {
         runWindowTitle: "Запуск - rsync builder",
         runRunning: "Выполняется…",
         runDone: "Готово",
-        runFailed: "Не удалось",
-        runDetails: "Подробности"
+        runFailed: "Не удалось"
     )
 }
