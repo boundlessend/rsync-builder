@@ -33,6 +33,8 @@ copies it to the clipboard, or runs it in a terminal.
 - Drag a file or folder onto the local field to fill its full path
 - Toggle common flags (`-a`, `-v`, `-c`); `--exclude` patterns in a popover
 - Extra options popover: `-z` compress, `-P` progress, `-u` update, `--delete`, `--stats`, `--bwlimit`
+- Deploy helpers: `--no-owner --no-group`, `--mkpath`, `--chmod`, sudo on the server, and an
+  upload-only post-sync command run over ssh (e.g. `cd ~/app && docker compose up -d`)
 - Preview button: a dry run (`-n`) to see what would transfer before doing it
 - Every toggle has a tooltip explaining what the flag does
 - Live command with shell-safe quoting of paths

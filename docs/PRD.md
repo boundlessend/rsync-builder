@@ -1,6 +1,6 @@
 # rsync builder - PRD
 
-Status: v1.1 shipped (Phase 1 of the expansion done). This document records the
+Status: v1.2 shipped (Phases 1-2 of the expansion done). This document records the
 current state and the planned expansion so nothing gets lost.
 
 Last updated: 2026-07-04
@@ -14,7 +14,7 @@ folders to servers and wants the correct command without memorising flags.
 Non-goals: multi-source lists (decided against), code signing/notarization,
 being a general file manager.
 
-## 2. Current state (shipped, v1.0.0)
+## 2. Current state (shipped, v1.2.0)
 
 ### UX
 - Menu bar only app (`MenuBarExtra`, `.window` style, `LSUIElement`): no Dock icon,
@@ -27,6 +27,9 @@ being a general file manager.
 - `--exclude` patterns: checkbox grid + custom add, folded into an "Exclude: N ▾" popover.
 - Extra options in an "Options ▾" popover (`-z` `-P` `-u` `--delete` `--stats` `--bwlimit`),
   each toggle with a tooltip; a Preview button runs the command with `--dry-run`. (v1.1)
+- Deploy helpers in the same popover (`--no-owner --no-group`, `--mkpath`, `--chmod`,
+  `--rsync-path="sudo rsync"`) and an upload-only post-sync command appended as
+  `rsync … && ssh -p N user@host '<cmd>'`. (v1.2)
 - Live command with shell-safe quoting of every path (`shellQuote`).
 - Copy to clipboard; Run in a separate terminal window (SwiftTerm), where SSH
   password/passphrase prompts work.
@@ -74,14 +77,14 @@ Keep the popover compact. All new controls land in:
 | `--bwlimit=RATE` | numeric field | add `--bwlimit=RATE` when set |
 | `--stats` / `-h` | toggle | add `--stats -h` |
 
-### 3.4 Area C - Deploy helpers (priority: medium, high fit)
+### 3.4 Area C - Deploy helpers (shipped in v1.2)
 | Feature | UI | Effect |
 | --- | --- | --- |
 | don't preserve ownership | toggle | add `--no-owner --no-group` |
 | `--mkpath` | toggle | create missing dest dirs |
 | `--chmod=SPEC` | field | add `--chmod=SPEC` |
 | sudo on server | toggle | add `--rsync-path="sudo rsync"` |
-| **post-sync command** | text field | wrap as `rsync … && ssh -p N user@host '<cmd>'` (e.g. `cd ~/app && docker compose up -d`) |
+| **post-sync command** | text field (upload only) | wrap as `rsync … && ssh -p N user@host '<cmd>'` (e.g. `cd ~/app && docker compose up -d`) |
 
 ### 3.5 Area D - Bigger features (priority: medium/low)
 - **Per-profile settings:** grow `ServerProfile` to store `remotePath`, flags, excludes,
@@ -101,7 +104,7 @@ Keep the popover compact. All new controls land in:
 
 ## 5. Suggested build order
 1. ~~Preview button + Options popover with Area A + B toggles (`-n -z -P -u --delete --bwlimit --stats`).~~ **Done in v1.1.**
-2. Area C deploy helpers + post-sync command.
+2. ~~Area C deploy helpers + post-sync command.~~ **Done in v1.2.**
 3. Per-profile settings (model refactor + migration).
 4. History, exclude presets, `-a` decomposition.
 
