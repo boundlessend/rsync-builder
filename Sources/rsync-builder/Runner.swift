@@ -25,6 +25,7 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         state = .running
         ensureWindow(title: title)
         window?.makeKeyAndOrderFront(nil)
+        window?.orderFrontRegardless()  // accessory-приложению нужно именно это, иначе окно уходит за активное приложение
         NSApp.activate(ignoringOtherApps: true)
 
         let (cmd, rsh) = runTransport(command: command, port: port)
@@ -90,6 +91,7 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         w.title = title
         w.isReleasedWhenClosed = false
         w.level = .floating  // поверх панели приложения и прочих окон, чтобы итог было видно
+        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]  // виден на всех Spaces и над fullscreen
         w.delegate = self
         w.center()
         window = w
