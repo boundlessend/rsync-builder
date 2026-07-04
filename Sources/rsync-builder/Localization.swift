@@ -28,6 +28,8 @@ struct L10n {
     let optPostLabel, optPostHelp, optPostPlaceholder, optPostUploadOnly: String
     let updateSection, checkUpdatesButton, updateUpToDate: String
     let updateAvailable, updateOpenRelease, updateFailed: String
+    let passwordLabel, passwordPlaceholder, passwordHelp: String
+    let runInTerminalItem, runWindowTitle: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -106,7 +108,12 @@ struct L10n {
         updateUpToDate: "You're on the latest version",
         updateAvailable: "Update available:",
         updateOpenRelease: "Open release page",
-        updateFailed: "Check failed:"
+        updateFailed: "Check failed:",
+        passwordLabel: "Password",
+        passwordPlaceholder: "empty if using SSH keys",
+        passwordHelp: "SSH password. Kept in memory only, never saved. Leave empty for key-based login",
+        runInTerminalItem: "Run in terminal",
+        runWindowTitle: "Run - rsync builder"
     )
 
     static let ru = L10n(
@@ -184,6 +191,11 @@ struct L10n {
         updateUpToDate: "Установлена последняя версия",
         updateAvailable: "Доступно обновление:",
         updateOpenRelease: "Открыть страницу релиза",
-        updateFailed: "Не удалось проверить:"
+        updateFailed: "Не удалось проверить:",
+        passwordLabel: "Пароль",
+        passwordPlaceholder: "пусто при входе по SSH-ключу",
+        passwordHelp: "пароль SSH. Хранится только в памяти, не сохраняется. Пусто = вход по ключу",
+        runInTerminalItem: "Запустить в терминале",
+        runWindowTitle: "Запуск - rsync builder"
     )
 }

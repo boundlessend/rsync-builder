@@ -33,16 +33,19 @@ struct ContentView: View {
     @AppStorage("optPostCmd") private var optPostCmd = ""
     @AppStorage("lastUpdateCheckAt") private var lastUpdateCheckAt = 0.0
 
+    // пароль держим только в памяти (не @AppStorage) - на диск не пишем
+    @State private var password = ""
     @State private var newExclude = ""
     @State private var copied = false
     @State private var dropLocal = false
     @State private var startPulse = 0
     @State private var showExcludes = false
     @State private var showOptions = false
+    @StateObject private var runner = CommandRunner()
     @StateObject private var terminal = TerminalWindow()
     @FocusState private var focus: Field?
 
-    private enum Field { case server, port, local, remote, newExclude }
+    private enum Field { case server, port, password, local, remote, newExclude }
 
     private var s: L10n { .of(lang) }
     private var localLabel: String { direction == .upload ? s.sourceLocal : s.destLocal }
@@ -129,7 +132,10 @@ struct ContentView: View {
                         let digits = new.filter(\.isNumber)
                         if digits != new { port = digits }
                     }
-                Spacer()
+                Text(s.passwordLabel).foregroundStyle(.secondary)
+                SecureField(s.passwordPlaceholder, text: $password)
+                    .focused($focus, equals: .password)
+                    .help(s.passwordHelp)
             }
 
             // локальная сторона: drop-зона + Обзор
@@ -260,6 +266,8 @@ struct ContentView: View {
             .changeEffect(.shine(duration: 0.7), value: startPulse, isEnabled: !reduceMotion)
 
             Menu {
+                Button(s.runInTerminalItem) { runInTerminal() }.disabled(!isComplete)
+                Divider()
                 Button(s.settingsItem) { openSettings() }
                 Button("About rsync builder") { showAboutPanel() }
                 Divider()
@@ -369,13 +377,19 @@ struct ContentView: View {
 
     private func runCommand() {
         startPulse += 1
-        terminal.run(command: command)
+        runner.run(command: command, port: port, password: password, title: s.runWindowTitle)
     }
 
     // Preview: запуск с -n (dry-run), ничего не меняет
     private func preview() {
         startPulse += 1
-        terminal.run(command: previewCommand)
+        runner.run(command: previewCommand, port: port, password: password, title: s.runWindowTitle)
+    }
+
+    // запасной путь: терминал для случаев, которые полем не решить (2FA, подтверждение host key)
+    private func runInTerminal() {
+        startPulse += 1
+        terminal.run(command: command)
     }
 
     // тихая автопроверка обновления не чаще раза в сутки (по первому открытию панели за день)
