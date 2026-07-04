@@ -2,6 +2,7 @@
 .build/
 rsync-builder.app/
 dist/
+dmg-staging/
 *.dmg
 
 # swiftpm user data

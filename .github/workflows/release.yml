@@ -19,11 +19,7 @@ jobs:
       - name: build app bundle
         run: ./build.sh
       - name: package dmg
-        run: |
-          mkdir -p dist
-          cp -R rsync-builder.app dist/
-          ln -s /Applications dist/Applications
-          hdiutil create -volname "rsync builder" -srcfolder dist -ov -format UDZO rsync-builder.dmg
+        run: ./dmg.sh  # оформленный DMG: фон + раскладка иконок (hdiutil + Finder AppleScript)
       # the app is not signed or notarized - Gatekeeper warns on first launch
       - name: publish github release
         uses: softprops/action-gh-release@v2
