@@ -18,6 +18,11 @@ jobs:
         run: |
           swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check
           /tmp/rsync_check
+      # смоук: реальный локальный rsync + доставка пароля через SSH_ASKPASS (без серверов и дисплея)
+      - name: smoke (rsync run + askpass wiring)
+        run: |
+          swiftc Sources/rsync-builder/Command.swift tests/smoke.swift -o /tmp/rsync_smoke
+          /tmp/rsync_smoke
 
   build:
     name: release build

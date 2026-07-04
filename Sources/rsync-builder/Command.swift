@@ -144,6 +144,24 @@ func runTransport(command: String, port: String) -> (command: String, rsh: Strin
     return (command, rsh)
 }
 
+// содержимое хелпера SSH_ASKPASS: печатает пароль из переменной окружения (секрета в самом файле нет)
+let askpassScript = "#!/bin/sh\nprintf '%s\\n' \"$RSYNC_BUILDER_PASS\"\n"
+
+// окружение для запуска rsync через Process: PATH + транспорт, а при заданном пароле - проводка SSH_ASKPASS.
+// чистая функция: base не мутируется, возвращается новый словарь
+func runEnvironment(base: [String: String], password: String, rsh: String, askpassPath: String) -> [String: String] {
+    var env = base
+    env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    env["RSYNC_RSH"] = rsh
+    if !password.isEmpty {
+        env["SSH_ASKPASS"] = askpassPath
+        env["SSH_ASKPASS_REQUIRE"] = "force"
+        env["DISPLAY"] = env["DISPLAY"] ?? ":0"
+        env["RSYNC_BUILDER_PASS"] = password
+    }
+    return env
+}
+
 // сравнение версий: true если latestTag строго новее current (числовое по компонентам, не лексическое)
 func isUpdateAvailable(current: String, latestTag: String) -> Bool {
     func parts(_ v: String) -> [Int] {

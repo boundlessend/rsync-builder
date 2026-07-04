@@ -121,6 +121,20 @@ let rt2 = runTransport(command: "rsync -avc /Users/me/x user@example.com:~/app/"
 assert(rt2.command == "rsync -avc /Users/me/x user@example.com:~/app/", rt2.command)
 assert(rt2.rsh == "ssh -o StrictHostKeyChecking=accept-new -o NumberOfPasswordPrompts=1", rt2.rsh)
 
+// runEnvironment: без пароля - PATH и RSYNC_RSH заданы, проводки askpass нет (секрет не течёт)
+let envNoPass = runEnvironment(base: [:], password: "", rsh: "ssh -o X", askpassPath: "/tmp/a.sh")
+assert(envNoPass["RSYNC_RSH"] == "ssh -o X", envNoPass["RSYNC_RSH"] ?? "nil")
+assert(envNoPass["PATH"]?.contains("/usr/bin") == true, "PATH not set")
+assert(envNoPass["SSH_ASKPASS"] == nil, "askpass leaked without password")
+assert(envNoPass["RSYNC_BUILDER_PASS"] == nil, "password leaked without password")
+
+// runEnvironment: с паролем - проводка askpass выставлена, пароль в отдельной переменной
+let envPass = runEnvironment(base: [:], password: "s3cr3t", rsh: "ssh", askpassPath: "/tmp/a.sh")
+assert(envPass["SSH_ASKPASS"] == "/tmp/a.sh", envPass["SSH_ASKPASS"] ?? "nil")
+assert(envPass["SSH_ASKPASS_REQUIRE"] == "force", "require not forced")
+assert(envPass["RSYNC_BUILDER_PASS"] == "s3cr3t", "password not passed")
+assert(envPass["DISPLAY"] != nil, "DISPLAY not set")
+
 // сравнение версий: тег с 'v', числовое (не лексическое) сравнение, равенство при разной длине
 assert(isUpdateAvailable(current: "1.2", latestTag: "v1.3.0"))
 assert(isUpdateAvailable(current: "1.2", latestTag: "v1.2.1"))

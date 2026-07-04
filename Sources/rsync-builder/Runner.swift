@@ -32,17 +32,9 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/sh")
         proc.arguments = ["-c", cmd]
-
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        env["RSYNC_RSH"] = rsh
-        if !password.isEmpty {
-            env["SSH_ASKPASS"] = askpassHelperPath()
-            env["SSH_ASKPASS_REQUIRE"] = "force"
-            env["DISPLAY"] = env["DISPLAY"] ?? ":0"
-            env["RSYNC_BUILDER_PASS"] = password
-        }
-        proc.environment = env
+        proc.environment = runEnvironment(
+            base: ProcessInfo.processInfo.environment, password: password,
+            rsh: rsh, askpassPath: askpassHelperPath())
 
         let pipe = Pipe()
         proc.standardOutput = pipe
@@ -71,10 +63,9 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
     // хелпер для SSH_ASKPASS: печатает пароль из переменной окружения. Секрета в файле нет, только чтение env
     private func askpassHelperPath() -> String {
         let path = NSTemporaryDirectory() + "rsync-builder-askpass.sh"
-        let script = "#!/bin/sh\nprintf '%s\\n' \"$RSYNC_BUILDER_PASS\"\n"
         FileManager.default.createFile(
             atPath: path,
-            contents: script.data(using: .utf8),
+            contents: askpassScript.data(using: .utf8),
             attributes: [.posixPermissions: 0o700]
         )
         return path
@@ -90,7 +81,8 @@ final class CommandRunner: NSObject, ObservableObject, NSWindowDelegate {
         w.styleMask = [.titled, .closable, .miniaturizable]
         w.title = title
         w.isReleasedWhenClosed = false
-        w.level = .floating  // поверх панели приложения и прочих окон, чтобы итог было видно
+        // поповер меню-бара живёт на очень высоком уровне; .screenSaver выше него, иначе плашка уходит под приложение
+        w.level = .screenSaver
         w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]  // виден на всех Spaces и над fullscreen
         w.delegate = self
         w.center()
