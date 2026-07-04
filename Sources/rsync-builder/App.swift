@@ -221,7 +221,7 @@ struct ContentView: View {
         .frame(width: 460)
         .animation(.easeInOut(duration: 0.2), value: showResult)
         .onAppear {
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             focus = .server
         }
         .task { await maybeAutoCheck() }

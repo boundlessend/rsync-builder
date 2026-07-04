@@ -41,7 +41,7 @@ enum UpdateError: LocalizedError {
 final class UpdateChecker: ObservableObject {
     @Published var state: UpdateState = .idle
 
-    private let releaseURL = URL(string: "https://api.github.com/repos/boundlessend/rsync-builder/releases/latest")!
+    private let releaseURLString = "https://api.github.com/repos/boundlessend/rsync-builder/releases/latest"
 
     // ручная проверка (кнопка в Настройках): показывает любой исход, включая ошибки
     func check() async {
@@ -68,7 +68,8 @@ final class UpdateChecker: ObservableObject {
 
     // до 3 попыток, затем пробрасываем последнюю ошибку
     private func fetchLatest() async throws -> GitHubRelease {
-        var req = URLRequest(url: releaseURL)
+        guard let url = URL(string: releaseURLString) else { throw UpdateError.badStatus(-1) }
+        var req = URLRequest(url: url)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("rsync-builder (github.com/boundlessend/rsync-builder)", forHTTPHeaderField: "User-Agent")
         var lastError: Error = UpdateError.badStatus(-1)

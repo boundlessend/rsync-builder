@@ -6,7 +6,8 @@ func makeMenuBarIcon() -> NSImage {
     let path = Bundle.main.resourcePath.map { $0 + "/menubar-icon.png" }
     let img =
         path.flatMap { NSImage(contentsOfFile: $0) }
-        ?? NSImage(systemSymbolName: "arrow.up.arrow.down.circle", accessibilityDescription: "rsync builder")!
+        ?? NSImage(systemSymbolName: "arrow.up.arrow.down.circle", accessibilityDescription: "rsync builder")
+        ?? NSImage(size: NSSize(width: 18, height: 18))
     img.isTemplate = true
     img.size = NSSize(width: 18, height: 18)
     return img
@@ -14,7 +15,7 @@ func makeMenuBarIcon() -> NSImage {
 
 // стандартная панель About с версией и лицензией
 func showAboutPanel() {
-    NSApp.activate(ignoringOtherApps: true)
+    NSApp.activate()
     NSApp.orderFrontStandardAboutPanel(options: [
         .applicationName: "rsync builder",
         .applicationVersion: appVersion,

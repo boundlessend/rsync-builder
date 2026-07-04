@@ -15,7 +15,7 @@ final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
         ensureWindow()
         startShellIfNeeded()
         window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         view.send(txt: command + "\n")
     }
 
