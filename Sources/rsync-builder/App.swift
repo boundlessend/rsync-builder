@@ -1,12 +1,12 @@
-import SwiftUI
 import AppKit
-import Pow
 import Defaults
-import Inject
+import Pow
+import SwiftUI
 
 struct ContentView: View {
     @Default(.profiles) private var profiles
-    @ObserveInjection private var inject
+    @Default(.excludes) private var excludes
+    @EnvironmentObject private var updater: UpdateChecker
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openSettings) private var openSettings
 
@@ -19,7 +19,7 @@ struct ContentView: View {
     @AppStorage("remotePath") private var remotePath = defaultProfiles.first?.remotePath ?? "~/"
     @AppStorage("flagA") private var flagA = true
     @AppStorage("flagV") private var flagV = true
-    @AppStorage("flagC") private var flagC = true
+    @AppStorage("flagC") private var flagC = false
     @AppStorage("optCompress") private var optCompress = false
     @AppStorage("optProgress") private var optProgress = false
     @AppStorage("optUpdate") private var optUpdate = false
@@ -31,8 +31,8 @@ struct ContentView: View {
     @AppStorage("optChmod") private var optChmod = ""
     @AppStorage("optSudo") private var optSudo = false
     @AppStorage("optPostCmd") private var optPostCmd = ""
+    @AppStorage("lastUpdateCheckAt") private var lastUpdateCheckAt = 0.0
 
-    @State private var excludes: [ExcludeItem] = defaultExcludes
     @State private var newExclude = ""
     @State private var copied = false
     @State private var dropLocal = false
@@ -110,11 +110,13 @@ struct ContentView: View {
                             remotePath = p.remotePath
                         }
                     }
-                } label: { Image(systemName: "chevron.down") }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .accessibilityLabel(s.serverProfiles)
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel(s.serverProfiles)
                 Button(s.saveButton) { saveCurrentAsProfile() }.help(s.saveHelp)
             }
 
@@ -147,7 +149,9 @@ struct ContentView: View {
                     guard let u = urls.first else { return false }
                     localPath = u.path
                     return true
-                } isTargeted: { dropLocal = $0 }
+                } isTargeted: {
+                    dropLocal = $0
+                }
                 if localPath.isEmpty {
                     Text(s.localTip).font(.caption2).foregroundStyle(.tertiary)
                 }
@@ -167,14 +171,18 @@ struct ContentView: View {
                 Toggle("-v", isOn: $flagV).accessibilityLabel(s.flagVA11y).help(s.flagVHelp)
                 Toggle("-c", isOn: $flagC).accessibilityLabel(s.flagCA11y).help(s.flagCHelp)
                 Spacer()
-                Button { showOptions.toggle() } label: {
+                Button {
+                    showOptions.toggle()
+                } label: {
                     HStack(spacing: 3) {
                         Text(activeOptionCount > 0 ? "\(s.optionsTitle): \(activeOptionCount)" : s.optionsTitle)
                         Image(systemName: "chevron.down").font(.caption2)
                     }
                 }
                 .popover(isPresented: $showOptions, arrowEdge: .bottom) { optionsPopover }
-                Button { showExcludes.toggle() } label: {
+                Button {
+                    showExcludes.toggle()
+                } label: {
                     HStack(spacing: 3) {
                         Text("\(s.excludeSection): \(enabledExcludeCount)")
                         Image(systemName: "chevron.down").font(.caption2)
@@ -203,7 +211,7 @@ struct ContentView: View {
             NSApp.activate(ignoringOtherApps: true)
             focus = .server
         }
-        .enableInjection()
+        .task { await maybeAutoCheck() }
     }
 
     // шапка панели: направление + Copy/Run + меню «•••»
@@ -219,23 +227,30 @@ struct ContentView: View {
 
             Spacer()
 
-            Button { preview() } label: {
+            Button {
+                preview()
+            } label: {
                 Image(systemName: "eye")
             }
             .disabled(!isComplete)
             .help(s.previewHelp)
             .accessibilityLabel(s.previewLabel)
 
-            Button { copy() } label: {
+            Button {
+                copy()
+            } label: {
                 Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .help(s.copyHelp)
-            .changeEffect(.spray(origin: UnitPoint(x: 0.5, y: 1)) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-            }, value: copied, isEnabled: copied && !reduceMotion)
+            .changeEffect(
+                .spray(origin: UnitPoint(x: 0.5, y: 1)) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                }, value: copied, isEnabled: copied && !reduceMotion)
 
-            Button { runCommand() } label: {
+            Button {
+                runCommand()
+            } label: {
                 Label(s.run, systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
@@ -273,9 +288,13 @@ struct ContentView: View {
             HStack(spacing: 6) {
                 TextField(s.excludePlaceholder, text: $newExclude)
                     .focused($focus, equals: .newExclude)
-                Button { addExclude() } label: { Image(systemName: "plus") }
-                    .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .help(s.addExcludeHelp)
+                Button {
+                    addExclude()
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(newExclude.trimmingCharacters(in: .whitespaces).isEmpty)
+                .help(s.addExcludeHelp)
             }
         }
         .padding(12)
@@ -284,6 +303,11 @@ struct ContentView: View {
 
     // поповер дополнительных опций rsync; у каждого переключателя своя подсказка (.help)
     private var optionsPopover: some View {
+        ScrollView { optionsBody }
+            .frame(width: 300, height: 420)
+    }
+
+    private var optionsBody: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(s.safetyHeader).font(.caption).foregroundStyle(.secondary)
             Toggle(s.optDeleteLabel, isOn: $optDelete).help(s.optDeleteHelp)
@@ -328,11 +352,12 @@ struct ContentView: View {
                         .lineLimit(1...2)
                         .help(s.optPostHelp)
                 }
+            } else {
+                Text(s.optPostUploadOnly).font(.caption2).foregroundStyle(.tertiary)
             }
         }
         .toggleStyle(.checkbox)
         .padding(12)
-        .frame(width: 300)
     }
 
     // пунктирная рамка drop-зоны (контрастнее при наведении)
@@ -351,6 +376,14 @@ struct ContentView: View {
     private func preview() {
         startPulse += 1
         terminal.run(command: previewCommand)
+    }
+
+    // тихая автопроверка обновления не чаще раза в сутки (по первому открытию панели за день)
+    private func maybeAutoCheck() async {
+        let now = Date().timeIntervalSince1970
+        guard now - lastUpdateCheckAt > 86_400 else { return }
+        lastUpdateCheckAt = now
+        await updater.checkSilently()
     }
 
     private func addExclude() {
@@ -377,11 +410,12 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
 
-    // @Default сохраняет автоматически при мутации массива
+    // @Default сохраняет автоматически при мутации массива; обновляем существующий профиль
+    // только при совпадении и хоста, и пути - иначе добавляем новый, чтобы не затирать чужой путь
     private func saveCurrentAsProfile() {
         let name = userHost.split(separator: "@").first.map(String.init) ?? userHost
         let profile = ServerProfile(name: name, userHost: userHost, port: port, remotePath: remotePath)
-        if let idx = profiles.firstIndex(where: { $0.userHost == userHost }) {
+        if let idx = profiles.firstIndex(where: { $0.userHost == userHost && $0.remotePath == remotePath }) {
             profiles[idx] = profile
         } else {
             profiles.append(profile)
@@ -393,16 +427,18 @@ private let menuBarIcon = makeMenuBarIcon()
 
 @main
 struct RsyncBuilderApp: App {
+    @StateObject private var updater = UpdateChecker()
+
     var body: some Scene {
         MenuBarExtra {
-            ContentView()
+            ContentView().environmentObject(updater)
         } label: {
             Image(nsImage: menuBarIcon)
         }
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView()
+            SettingsView().environmentObject(updater)
         }
     }
 }

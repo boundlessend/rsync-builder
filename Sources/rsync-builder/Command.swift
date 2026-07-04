@@ -9,9 +9,9 @@ struct ServerProfile: Codable, Identifiable, Hashable {
     var remotePath: String
 }
 
-// один пункт исключений (--exclude)
-struct ExcludeItem: Identifiable, Hashable {
-    let id = UUID()
+// один пункт исключений (--exclude); Codable - чтобы сохраняться между запусками через Defaults
+struct ExcludeItem: Codable, Identifiable, Hashable {
+    var id = UUID()
     var pattern: String
     var on: Bool
 }
@@ -23,7 +23,7 @@ enum Direction: String, CaseIterable {
 
 // пример профиля; реальные серверы пользователь добавляет сам (хранятся локально в UserDefaults)
 let defaultProfiles: [ServerProfile] = [
-    ServerProfile(name: "example", userHost: "user@example.com", port: "22", remotePath: "~/remote/"),
+    ServerProfile(name: "example", userHost: "user@example.com", port: "22", remotePath: "~/remote/")
 ]
 
 let defaultExcludes: [ExcludeItem] = [
@@ -47,21 +47,21 @@ func shellQuote(_ arg: String) -> String {
 
 // набор опций rsync (чекбоксы и поля интерфейса)
 struct RsyncOptions {
-    var archive: Bool       // -a
-    var verbose: Bool       // -v
-    var checksum: Bool      // -c
-    var compress: Bool      // -z
-    var progress: Bool      // -P
-    var update: Bool        // -u
-    var delete: Bool        // --delete
-    var stats: Bool         // --stats + -h
-    var dryRun: Bool        // -n (для Preview)
-    var bwlimit: String     // --bwlimit=RATE (КБ/с), пусто = без лимита
+    var archive: Bool  // -a
+    var verbose: Bool  // -v
+    var checksum: Bool  // -c
+    var compress: Bool  // -z
+    var progress: Bool  // -P
+    var update: Bool  // -u
+    var delete: Bool  // --delete
+    var stats: Bool  // --stats + -h
+    var dryRun: Bool  // -n (для Preview)
+    var bwlimit: String  // --bwlimit=RATE (КБ/с), пусто = без лимита
     var noOwnerGroup: Bool  // --no-owner --no-group
-    var mkpath: Bool        // --mkpath (создать недостающие папки назначения)
-    var chmod: String       // --chmod=SPEC, пусто = не добавлять
-    var sudo: Bool          // --rsync-path="sudo rsync"
-    var postCommand: String // && ssh ... '<cmd>' на сервере после отправки (только upload)
+    var mkpath: Bool  // --mkpath (создать недостающие папки назначения)
+    var chmod: String  // --chmod=SPEC, пусто = не добавлять
+    var sudo: Bool  // --rsync-path="sudo rsync"
+    var postCommand: String  // && ssh ... '<cmd>' на сервере после отправки (только upload)
 }
 
 // чистая функция сборки команды rsync

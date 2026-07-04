@@ -7,8 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
         .package(url: "https://github.com/EmergeTools/Pow", from: "1.0.0"),
-        .package(url: "https://github.com/sindresorhus/Defaults", from: "8.0.0"),
-        .package(url: "https://github.com/krzysztofzablocki/Inject", from: "1.2.0")
+        .package(url: "https://github.com/sindresorhus/Defaults", from: "8.0.0")
     ],
     targets: [
         .executableTarget(
@@ -16,8 +15,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
                 .product(name: "Pow", package: "Pow"),
-                .product(name: "Defaults", package: "Defaults"),
-                .product(name: "Inject", package: "Inject")
+                .product(name: "Defaults", package: "Defaults")
             ],
             path: "Sources/rsync-builder"
         )

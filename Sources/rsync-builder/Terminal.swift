@@ -22,7 +22,9 @@ final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
     private func startShellIfNeeded() {
         guard !started else { return }
         started = true
-        view.startProcess(executable: "/bin/zsh", args: ["-l"], environment: nil, execName: nil, currentDirectory: nil)
+        // логин-шелл пользователя (из $SHELL), а не жёстко zsh; -l читает профиль
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        view.startProcess(executable: shell, args: ["-l"], environment: nil, execName: nil, currentDirectory: nil)
     }
 
     private func ensureWindow() {

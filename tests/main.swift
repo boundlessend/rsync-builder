@@ -98,7 +98,8 @@ let pc = buildCommand(
     direction: .upload, options: post, port: "8022", excludes: [],
     localPath: "/Users/me/x", userHost: "deploy@server.example", remotePath: "~/app/"
 )
-assert(pc == "rsync -avc -e \"ssh -p 8022\" /Users/me/x deploy@server.example:~/app/ && ssh -p 8022 deploy@server.example 'cd ~/app && docker compose up -d'", pc)
+assert(
+    pc == "rsync -avc -e \"ssh -p 8022\" /Users/me/x deploy@server.example:~/app/ && ssh -p 8022 deploy@server.example 'cd ~/app && docker compose up -d'", pc)
 
 // пост-команда игнорируется на download
 var postDown = avc

@@ -1,10 +1,11 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // template-иконка для меню-бара (монохром, тонируется системой)
 func makeMenuBarIcon() -> NSImage {
     let path = Bundle.main.resourcePath.map { $0 + "/menubar-icon.png" }
-    let img = path.flatMap { NSImage(contentsOfFile: $0) }
+    let img =
+        path.flatMap { NSImage(contentsOfFile: $0) }
         ?? NSImage(systemSymbolName: "arrow.up.arrow.down.circle", accessibilityDescription: "rsync builder")!
     img.isTemplate = true
     img.size = NSSize(width: 18, height: 18)

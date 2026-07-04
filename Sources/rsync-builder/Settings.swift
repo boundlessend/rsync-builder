@@ -3,7 +3,7 @@ import SwiftUI
 // окно Настроек (⌘,): язык интерфейса + проверка обновлений
 struct SettingsView: View {
     @AppStorage("lang") private var lang: Lang = .en
-    @StateObject private var updater = UpdateChecker()
+    @EnvironmentObject private var updater: UpdateChecker
     @Environment(\.openURL) private var openURL
 
     private var s: L10n { .of(lang) }

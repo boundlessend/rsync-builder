@@ -25,7 +25,7 @@ struct L10n {
     let optStatsLabel, optStatsHelp, optBwlimitLabel, optBwlimitHelp: String
     let deployHeader, optNoOwnerLabel, optNoOwnerHelp, optMkpathLabel, optMkpathHelp: String
     let optChmodLabel, optChmodHelp, optSudoLabel, optSudoHelp: String
-    let optPostLabel, optPostHelp, optPostPlaceholder: String
+    let optPostLabel, optPostHelp, optPostPlaceholder, optPostUploadOnly: String
     let updateSection, checkUpdatesButton, updateUpToDate: String
     let updateAvailable, updateOpenRelease, updateFailed: String
 
@@ -84,8 +84,8 @@ struct L10n {
         optCompressHelp: "compress file data during transfer (useful on slow links)",
         optProgressLabel: "-P progress",
         optProgressHelp: "show progress and keep partially transferred files (resume)",
-        optStatsLabel: "--stats",
-        optStatsHelp: "print a transfer summary with human-readable sizes",
+        optStatsLabel: "--stats -h",
+        optStatsHelp: "print a transfer summary; -h shows human-readable sizes",
         optBwlimitLabel: "bandwidth",
         optBwlimitHelp: "limit transfer speed in KB/s; empty = unlimited",
         deployHeader: "Deploy",
@@ -100,6 +100,7 @@ struct L10n {
         optPostLabel: "post-sync command",
         optPostHelp: "after a successful upload, run this over ssh on the server (e.g. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
+        optPostUploadOnly: "post-sync command applies to upload only",
         updateSection: "Updates",
         checkUpdatesButton: "Check for updates",
         updateUpToDate: "You're on the latest version",
@@ -161,8 +162,8 @@ struct L10n {
         optCompressHelp: "сжимать данные при передаче (полезно на медленной сети)",
         optProgressLabel: "-P прогресс",
         optProgressHelp: "показывать прогресс и хранить частичные файлы для докачки",
-        optStatsLabel: "--stats",
-        optStatsHelp: "печатать сводку по переносу с человекочитаемыми размерами",
+        optStatsLabel: "--stats -h",
+        optStatsHelp: "печатать сводку по переносу; -h - человекочитаемые размеры",
         optBwlimitLabel: "скорость",
         optBwlimitHelp: "ограничить скорость в КБ/с; пусто = без лимита",
         deployHeader: "Деплой",
@@ -177,6 +178,7 @@ struct L10n {
         optPostLabel: "пост-команда",
         optPostHelp: "после успешной отправки выполнить по ssh на сервере (напр. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
+        optPostUploadOnly: "пост-команда работает только при upload",
         updateSection: "Обновления",
         checkUpdatesButton: "Проверить обновления",
         updateUpToDate: "Установлена последняя версия",
