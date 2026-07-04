@@ -26,6 +26,8 @@ struct L10n {
     let deployHeader, optNoOwnerLabel, optNoOwnerHelp, optMkpathLabel, optMkpathHelp: String
     let optChmodLabel, optChmodHelp, optSudoLabel, optSudoHelp: String
     let optPostLabel, optPostHelp, optPostPlaceholder: String
+    let updateSection, checkUpdatesButton, updateUpToDate: String
+    let updateAvailable, updateOpenRelease, updateFailed: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -97,7 +99,13 @@ struct L10n {
         optSudoHelp: "run rsync via sudo on the remote (--rsync-path=\"sudo rsync\") to write into system paths",
         optPostLabel: "post-sync command",
         optPostHelp: "after a successful upload, run this over ssh on the server (e.g. cd ~/app && docker compose up -d)",
-        optPostPlaceholder: "cd ~/app && docker compose up -d"
+        optPostPlaceholder: "cd ~/app && docker compose up -d",
+        updateSection: "Updates",
+        checkUpdatesButton: "Check for updates",
+        updateUpToDate: "You're on the latest version",
+        updateAvailable: "Update available:",
+        updateOpenRelease: "Open release page",
+        updateFailed: "Check failed:"
     )
 
     static let ru = L10n(
@@ -168,6 +176,12 @@ struct L10n {
         optSudoHelp: "запускать rsync через sudo на сервере (--rsync-path=\"sudo rsync\"), чтобы писать в системные пути",
         optPostLabel: "пост-команда",
         optPostHelp: "после успешной отправки выполнить по ssh на сервере (напр. cd ~/app && docker compose up -d)",
-        optPostPlaceholder: "cd ~/app && docker compose up -d"
+        optPostPlaceholder: "cd ~/app && docker compose up -d",
+        updateSection: "Обновления",
+        checkUpdatesButton: "Проверить обновления",
+        updateUpToDate: "Установлена последняя версия",
+        updateAvailable: "Доступно обновление:",
+        updateOpenRelease: "Открыть страницу релиза",
+        updateFailed: "Не удалось проверить:"
     )
 }

@@ -130,3 +130,19 @@ func buildCommand(
     }
     return result
 }
+
+// сравнение версий: true если latestTag строго новее current (числовое по компонентам, не лексическое)
+func isUpdateAvailable(current: String, latestTag: String) -> Bool {
+    func parts(_ v: String) -> [Int] {
+        let trimmed = v.hasPrefix("v") || v.hasPrefix("V") ? String(v.dropFirst()) : v
+        return trimmed.split(separator: ".").map { Int($0) ?? 0 }
+    }
+    let latest = parts(latestTag)
+    let cur = parts(current)
+    for i in 0..<max(latest.count, cur.count) {
+        let x = i < latest.count ? latest[i] : 0
+        let y = i < cur.count ? cur[i] : 0
+        if x != y { return x > y }
+    }
+    return false
+}

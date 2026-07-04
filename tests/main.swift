@@ -109,4 +109,12 @@ let pd = buildCommand(
 )
 assert(pd == "rsync -avc user@example.com:~/app/ ~/x/", pd)
 
+// сравнение версий: тег с 'v', числовое (не лексическое) сравнение, равенство при разной длине
+assert(isUpdateAvailable(current: "1.2", latestTag: "v1.3.0"))
+assert(isUpdateAvailable(current: "1.2", latestTag: "v1.2.1"))
+assert(isUpdateAvailable(current: "1.9", latestTag: "v1.10.0"))  // 10 > 9 численно, не лексически
+assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2.0"))
+assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2"))
+assert(!isUpdateAvailable(current: "1.2.0", latestTag: "v1.1.9"))
+
 print("OK: все проверки пройдены")
