@@ -26,8 +26,8 @@ struct L10n {
     let deployHeader, optNoOwnerLabel, optNoOwnerHelp, optMkpathLabel, optMkpathHelp: String
     let optChmodLabel, optChmodHelp, optSudoLabel, optSudoHelp: String
     let optPostLabel, optPostHelp, optPostPlaceholder, optPostUploadOnly: String
-    let updateSection, checkUpdatesButton, updateUpToDate: String
-    let updateAvailable, updateOpenRelease, updateFailed: String
+    let checkUpdatesButton, updateUpToDate: String
+    let updateAvailable, updateChecking, updateFailed: String
     let passwordLabel, passwordPlaceholder, passwordHelp: String
     let runInTerminalItem: String
     let runRunning, runDone, runFailed, runClose: String
@@ -104,11 +104,10 @@ struct L10n {
         optPostHelp: "after a successful upload, run this over ssh on the server (e.g. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
         optPostUploadOnly: "post-sync command applies to upload only",
-        updateSection: "Updates",
         checkUpdatesButton: "Check for updates",
         updateUpToDate: "You're on the latest version",
         updateAvailable: "Update available:",
-        updateOpenRelease: "Open release page",
+        updateChecking: "Checking…",
         updateFailed: "Check failed:",
         passwordLabel: "Password",
         passwordPlaceholder: "empty if using SSH keys",
@@ -190,11 +189,10 @@ struct L10n {
         optPostHelp: "после успешной отправки выполнить по ssh на сервере (напр. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
         optPostUploadOnly: "пост-команда работает только при upload",
-        updateSection: "Обновления",
         checkUpdatesButton: "Проверить обновления",
         updateUpToDate: "Установлена последняя версия",
         updateAvailable: "Доступно обновление:",
-        updateOpenRelease: "Открыть страницу релиза",
+        updateChecking: "Проверка…",
         updateFailed: "Не удалось проверить:",
         passwordLabel: "Пароль",
         passwordPlaceholder: "пусто при входе по SSH-ключу",

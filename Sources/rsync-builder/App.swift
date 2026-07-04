@@ -9,6 +9,7 @@ struct ContentView: View {
     @EnvironmentObject private var updater: UpdateChecker
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openURL) private var openURL
 
     // состояние формы сохраняется между запусками
     @AppStorage("lang") private var lang: Lang = .en
@@ -282,6 +283,8 @@ struct ContentView: View {
             Menu {
                 Button(s.runInTerminalItem) { runInTerminal() }.disabled(!isComplete)
                 Divider()
+                updateMenuItems
+                Divider()
                 Button(s.settingsItem) { openSettings() }
                 Button("About rsync builder") { showAboutPanel() }
                 Divider()
@@ -426,6 +429,27 @@ struct ContentView: View {
         return ""
     }
 
+    // проверка обновлений в меню «•••»: кнопка проверки + статус последнего исхода
+    @ViewBuilder private var updateMenuItems: some View {
+        if case .checking = updater.state {
+            Text(s.updateChecking)
+        } else {
+            Button(s.checkUpdatesButton) { Task { await updater.check() } }
+        }
+        switch updater.state {
+        case .upToDate:
+            Text(s.updateUpToDate)
+        case .available(let version, let url):
+            Button("\(s.updateAvailable) \(version)") {
+                if let u = URL(string: url) { openURL(u) }
+            }
+        case .failed(let msg):
+            Text("\(s.updateFailed) \(msg)")
+        case .idle, .checking:
+            EmptyView()
+        }
+    }
+
     // пунктирная рамка drop-зоны (контрастнее при наведении)
     private var dropBorder: some View {
         RoundedRectangle(cornerRadius: 6)
@@ -527,7 +551,7 @@ struct RsyncBuilderApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView().environmentObject(updater)
+            SettingsView()
         }
     }
 }
