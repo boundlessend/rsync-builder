@@ -131,6 +131,19 @@ func buildCommand(
     return result
 }
 
+// подготовка команды к запуску через Process (без TTY): порт и авто-приём нового host key
+// переносятся в RSYNC_RSH, дублирующий -e убирается, чтобы транспорт был единым для 22 и нестандартного порта
+func runTransport(command: String, port: String) -> (command: String, rsh: String) {
+    let p = port.trimmingCharacters(in: .whitespaces)
+    // NumberOfPasswordPrompts=1 - не долбить сервер одним и тем же паролем трижды при ошибке
+    var rsh = "ssh -o StrictHostKeyChecking=accept-new -o NumberOfPasswordPrompts=1"
+    if !p.isEmpty, p != "22" {
+        rsh += " -p \(p)"
+        return (command.replacingOccurrences(of: "-e \"ssh -p \(p)\" ", with: ""), rsh)
+    }
+    return (command, rsh)
+}
+
 // сравнение версий: true если latestTag строго новее current (числовое по компонентам, не лексическое)
 func isUpdateAvailable(current: String, latestTag: String) -> Bool {
     func parts(_ v: String) -> [Int] {

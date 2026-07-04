@@ -110,6 +110,17 @@ let pd = buildCommand(
 )
 assert(pd == "rsync -avc user@example.com:~/app/ ~/x/", pd)
 
+// runTransport: нестандартный порт -> -e убирается, порт уходит в RSYNC_RSH вместе с accept-new
+let rt1 = runTransport(
+    command: "rsync -av -e \"ssh -p 8022\" --exclude=.git /Users/me/x deploy@server:~/app/", port: "8022")
+assert(rt1.command == "rsync -av --exclude=.git /Users/me/x deploy@server:~/app/", rt1.command)
+assert(rt1.rsh == "ssh -o StrictHostKeyChecking=accept-new -o NumberOfPasswordPrompts=1 -p 8022", rt1.rsh)
+
+// runTransport: порт 22 -> команда без -e не меняется, RSYNC_RSH без -p
+let rt2 = runTransport(command: "rsync -avc /Users/me/x user@example.com:~/app/", port: "22")
+assert(rt2.command == "rsync -avc /Users/me/x user@example.com:~/app/", rt2.command)
+assert(rt2.rsh == "ssh -o StrictHostKeyChecking=accept-new -o NumberOfPasswordPrompts=1", rt2.rsh)
+
 // сравнение версий: тег с 'v', числовое (не лексическое) сравнение, равенство при разной длине
 assert(isUpdateAvailable(current: "1.2", latestTag: "v1.3.0"))
 assert(isUpdateAvailable(current: "1.2", latestTag: "v1.2.1"))
