@@ -41,7 +41,7 @@ copies it to the clipboard, or runs it in a terminal.
 - Optional SSH password field (kept in memory only) so a run needs no terminal; leave empty for key-based login
 - Run and Preview execute inline: a spinner in the button, a brief success check, or an in-panel error banner with the output
 - Copy to clipboard; a "Run in terminal" fallback lives in the "•••" menu for 2FA / host-key confirmation
-- Interface language (English / Русский) switchable in Settings
+- Interface language follows your system by default (English / Русский), switchable in Settings
 - Check for updates from the "•••" menu: compares your version against the latest GitHub release
 
 ## Install
