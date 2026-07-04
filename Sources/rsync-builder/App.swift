@@ -129,6 +129,7 @@ struct ContentView: View {
                 TextField("22", text: $port)
                     .frame(width: 70)
                     .focused($focus, equals: .port)
+                    .accessibilityLabel(s.portLabel)
                     .onChange(of: port) { _, new in
                         let digits = new.filter(\.isNumber)
                         if digits != new { port = digits }
@@ -136,6 +137,7 @@ struct ContentView: View {
                 Text(s.passwordLabel).foregroundStyle(.secondary)
                 SecureField(s.passwordPlaceholder, text: $password)
                     .focused($focus, equals: .password)
+                    .accessibilityLabel(s.passwordLabel)
                     .help(s.passwordHelp)
             }
 
@@ -419,7 +421,9 @@ struct ContentView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .strokeBorder((failed ? Color.red : Color.green).opacity(0.4)))
+                .strokeBorder((failed ? Color.red : Color.green).opacity(0.4))
+        )
+        .accessibilityElement(children: .combine)
     }
 
     private var resultTitle: String {
@@ -549,6 +553,7 @@ struct RsyncBuilderApp: App {
             Image(nsImage: menuBarIcon)
         }
         .menuBarExtraStyle(.window)
+        .commands { TextEditingCommands() }  // Cmd+C/V/X/A/Z в полях у menu-bar приложения без главного меню
 
         Settings {
             SettingsView()
