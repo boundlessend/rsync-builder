@@ -38,9 +38,11 @@ copies it to the clipboard, or runs it in a terminal.
 - Preview button: a dry run (`-n`) to see what would transfer before doing it
 - Every toggle has a tooltip explaining what the flag does
 - Live command with shell-safe quoting of paths
-- Copy to clipboard, or run in a separate terminal window (SSH password prompts work there)
+- Optional SSH password field (kept in memory only) so a run needs no terminal; leave empty for key-based login
+- Run and Preview execute inline: a spinner in the button, a brief success check, or an in-panel error banner with the output
+- Copy to clipboard; a "Run in terminal" fallback lives in the "•••" menu for 2FA / host-key confirmation
 - Interface language (English / Русский) switchable in Settings
-- Check for updates in Settings: compares your version against the latest GitHub release
+- Check for updates from the "•••" menu: compares your version against the latest GitHub release
 
 ## Install
 
@@ -68,10 +70,11 @@ With [InjectionIII](https://github.com/johnno1962/InjectionIII) running, method-
 edits are hot-swapped at runtime. There is no `Inject` dependency, so SwiftUI views
 do not auto-refresh - it is a plain debug build plus `-interposable`.
 
-## Logic check
+## Tests
 
 ```sh
-swiftc Sources/rsync-builder/Command.swift tests/main.swift -o /tmp/rsync_check && /tmp/rsync_check
+swiftc Sources/rsync-builder/Command.swift tests/main.swift  -o /tmp/rsync_check && /tmp/rsync_check   # logic
+swiftc Sources/rsync-builder/Command.swift tests/smoke.swift -o /tmp/rsync_smoke && /tmp/rsync_smoke  # smoke: local rsync + SSH_ASKPASS wiring
 ```
 
 ## Dependencies

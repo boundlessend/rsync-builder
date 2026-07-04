@@ -1,7 +1,7 @@
 # rsync builder - PRD
 
-Status: v1.2 shipped (Phases 1-2 of the expansion done). This document records the
-current state and the planned expansion so nothing gets lost.
+Status: v1.3 shipped (Phases 1-2 of the expansion done, plus terminal-free run + password auth).
+This document records the current state and the planned expansion so nothing gets lost.
 
 Last updated: 2026-07-04
 
@@ -14,7 +14,7 @@ folders to servers and wants the correct command without memorising flags.
 Non-goals: multi-source lists (decided against), code signing/notarization,
 being a general file manager.
 
-## 2. Current state (shipped, v1.2.0)
+## 2. Current state (shipped, v1.3.0)
 
 ### UX
 - Menu bar only app (`MenuBarExtra`, `.window` style, `LSUIElement`): no Dock icon,
@@ -31,28 +31,38 @@ being a general file manager.
   `--rsync-path="sudo rsync"`) and an upload-only post-sync command appended as
   `rsync … && ssh -p N user@host '<cmd>'`. (v1.2)
 - Live command with shell-safe quoting of every path (`shellQuote`).
-- Copy to clipboard; Run in a separate terminal window (SwiftTerm), where SSH
-  password/passphrase prompts work.
-- Buttons in a top bar (direction + Copy + Run + "•••" menu with Settings / About / Quit).
+- Optional SSH password field (`SecureField`, in-memory only, never persisted). Run/Preview
+  execute inline via `Process` (`/bin/sh -c`) with no terminal; the password is fed to ssh
+  through an `SSH_ASKPASS` helper reading it from the child env (`RSYNC_BUILDER_PASS`), never
+  written to disk. Empty password = key-based login. Host key auto-accepted via
+  `RSYNC_RSH=ssh -o StrictHostKeyChecking=accept-new`. (v1.3)
+- Run state shown inline: a spinner in the Run/Preview button (doubling as cancel), a brief
+  green success check for Run, or an in-panel error banner with the exit code + output.
+  Preview surfaces its dry-run output in that banner. (v1.3)
+- Copy to clipboard; a "Run in terminal" fallback (SwiftTerm) stays in the "•••" menu for
+  2FA / host-key confirmation. (v1.3)
+- Buttons in a top bar (direction + Preview + Copy + Run + "•••" menu).
 - Localization EN / RU, language switch in the Settings window (default EN).
-- "Check for updates" in Settings: queries the GitHub Releases API (native `URLSession`,
+- "Check for updates" in the "•••" menu: queries the GitHub Releases API (native `URLSession`,
   no new dependency) and compares `tag_name` against the app version. A silent auto-check
-  runs at most once a day and surfaces only when an update is available.
+  runs at most once a day and surfaces only when an update is available. (v1.3: moved from Settings)
 - Native Liquid Glass, Pow button effects (gated by Reduce Motion), accessibility
   labels, `@FocusState`, incomplete-command guard (Run disabled until server + both paths).
 - Form state persisted between launches (`@AppStorage`); server profiles and exclude
   list persisted via Defaults; real servers live only in local `UserDefaults`, never in source.
 
 ### Architecture
-- `Command.swift`: pure `buildCommand(...)`, `shellQuote`, `ServerProfile`, `ExcludeItem`,
-  `Direction`, `defaultProfiles` (single `example` profile), `defaultExcludes`.
-- `App.swift`: `ContentView` (the popover) + `RsyncBuilderApp` scene (`MenuBarExtra` + `Settings`).
-- `Terminal.swift`: `TerminalWindow` (SwiftTerm run window).
-- `Persistence.swift`: Defaults key for profiles.
-- `Localization.swift`, `Settings.swift`, `Menu.swift`.
+- `Command.swift`: pure `buildCommand(...)`, `shellQuote`, `runTransport`, `runEnvironment`,
+  `askpassScript`, `ServerProfile`, `ExcludeItem`, `Direction`, defaults.
+- `Runner.swift`: `CommandRunner` (runs rsync via `Process`, publishes state/output; no window).
+- `App.swift`: `ContentView` (the popover, spinner-in-button + result banner) + `RsyncBuilderApp` scene.
+- `Terminal.swift`: `TerminalWindow` (SwiftTerm fallback run window).
+- `Persistence.swift`: Defaults keys for profiles/excludes.
+- `Localization.swift`, `Settings.swift`, `Menu.swift`, `Update.swift`.
 - Deps: SwiftTerm, Pow, Defaults. Requires macOS 26+.
-- Tests: assert-based logic check for `buildCommand` (`tests/main.swift`).
-- CI: `ci` (build + logic test), `lint` (swift-format, non-blocking), `release`
+- Tests: assert-based logic (`tests/main.swift`) + server-free smoke (`tests/smoke.swift`:
+  local rsync run + `SSH_ASKPASS` password delivery).
+- CI: `ci` (build + logic + smoke), `lint` (swift-format, non-blocking), `release`
   (DMG on tag `v*`), `stale`, `dependency-review`. Public repo, BSD-3.
 
 ## 3. Planned expansion
