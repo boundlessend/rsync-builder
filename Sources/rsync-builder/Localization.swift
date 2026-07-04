@@ -23,6 +23,9 @@ struct L10n {
     let optDeleteLabel, optDeleteHelp, optDeleteWarn, optUpdateLabel, optUpdateHelp: String
     let optCompressLabel, optCompressHelp, optProgressLabel, optProgressHelp: String
     let optStatsLabel, optStatsHelp, optBwlimitLabel, optBwlimitHelp: String
+    let deployHeader, optNoOwnerLabel, optNoOwnerHelp, optMkpathLabel, optMkpathHelp: String
+    let optChmodLabel, optChmodHelp, optSudoLabel, optSudoHelp: String
+    let optPostLabel, optPostHelp, optPostPlaceholder: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -82,7 +85,19 @@ struct L10n {
         optStatsLabel: "--stats",
         optStatsHelp: "print a transfer summary with human-readable sizes",
         optBwlimitLabel: "bandwidth",
-        optBwlimitHelp: "limit transfer speed in KB/s; empty = unlimited"
+        optBwlimitHelp: "limit transfer speed in KB/s; empty = unlimited",
+        deployHeader: "Deploy",
+        optNoOwnerLabel: "don't preserve owner/group",
+        optNoOwnerHelp: "add --no-owner --no-group: files take the server's account (useful when UIDs differ)",
+        optMkpathLabel: "--mkpath",
+        optMkpathHelp: "create missing destination directories (needs rsync 3.2.3+ on both sides)",
+        optChmodLabel: "chmod",
+        optChmodHelp: "set permissions on transferred files, e.g. Du=rwx,go=rx; empty = leave as is",
+        optSudoLabel: "sudo on server",
+        optSudoHelp: "run rsync via sudo on the remote (--rsync-path=\"sudo rsync\") to write into system paths",
+        optPostLabel: "post-sync command",
+        optPostHelp: "after a successful upload, run this over ssh on the server (e.g. cd ~/app && docker compose up -d)",
+        optPostPlaceholder: "cd ~/app && docker compose up -d"
     )
 
     static let ru = L10n(
@@ -141,6 +156,18 @@ struct L10n {
         optStatsLabel: "--stats",
         optStatsHelp: "печатать сводку по переносу с человекочитаемыми размерами",
         optBwlimitLabel: "скорость",
-        optBwlimitHelp: "ограничить скорость в КБ/с; пусто = без лимита"
+        optBwlimitHelp: "ограничить скорость в КБ/с; пусто = без лимита",
+        deployHeader: "Деплой",
+        optNoOwnerLabel: "не сохранять владельца/группу",
+        optNoOwnerHelp: "добавить --no-owner --no-group: файлы получат аккаунт сервера (полезно при разных UID)",
+        optMkpathLabel: "--mkpath",
+        optMkpathHelp: "создавать недостающие папки назначения (нужен rsync 3.2.3+ с обеих сторон)",
+        optChmodLabel: "права",
+        optChmodHelp: "выставить права на переданные файлы, напр. Du=rwx,go=rx; пусто = не менять",
+        optSudoLabel: "sudo на сервере",
+        optSudoHelp: "запускать rsync через sudo на сервере (--rsync-path=\"sudo rsync\"), чтобы писать в системные пути",
+        optPostLabel: "пост-команда",
+        optPostHelp: "после успешной отправки выполнить по ssh на сервере (напр. cd ~/app && docker compose up -d)",
+        optPostPlaceholder: "cd ~/app && docker compose up -d"
     )
 }

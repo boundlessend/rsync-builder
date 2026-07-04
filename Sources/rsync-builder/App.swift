@@ -26,6 +26,11 @@ struct ContentView: View {
     @AppStorage("optDelete") private var optDelete = false
     @AppStorage("optStats") private var optStats = false
     @AppStorage("optBwlimit") private var optBwlimit = ""
+    @AppStorage("optNoOwner") private var optNoOwner = false
+    @AppStorage("optMkpath") private var optMkpath = false
+    @AppStorage("optChmod") private var optChmod = ""
+    @AppStorage("optSudo") private var optSudo = false
+    @AppStorage("optPostCmd") private var optPostCmd = ""
 
     @State private var excludes: [ExcludeItem] = defaultExcludes
     @State private var newExclude = ""
@@ -58,14 +63,19 @@ struct ContentView: View {
         RsyncOptions(
             archive: flagA, verbose: flagV, checksum: flagC,
             compress: optCompress, progress: optProgress, update: optUpdate,
-            delete: optDelete, stats: optStats, dryRun: false, bwlimit: optBwlimit
+            delete: optDelete, stats: optStats, dryRun: false, bwlimit: optBwlimit,
+            noOwnerGroup: optNoOwner, mkpath: optMkpath, chmod: optChmod, sudo: optSudo,
+            postCommand: optPostCmd
         )
     }
 
     // число активных дополнительных опций (для бейджа на кнопке)
     private var activeOptionCount: Int {
-        [optCompress, optProgress, optUpdate, optDelete, optStats].filter { $0 }.count
+        [optCompress, optProgress, optUpdate, optDelete, optStats, optNoOwner, optMkpath, optSudo]
+            .filter { $0 }.count
             + (optBwlimit.trimmingCharacters(in: .whitespaces).isEmpty ? 0 : 1)
+            + (optChmod.trimmingCharacters(in: .whitespaces).isEmpty ? 0 : 1)
+            + (direction == .upload && !optPostCmd.trimmingCharacters(in: .whitespaces).isEmpty ? 1 : 0)
     }
 
     private var command: String {
@@ -300,6 +310,25 @@ struct ContentView: View {
                 Text("KB/s").foregroundStyle(.secondary)
             }
             .help(s.optBwlimitHelp)
+
+            Divider()
+
+            Text(s.deployHeader).font(.caption).foregroundStyle(.secondary)
+            Toggle(s.optNoOwnerLabel, isOn: $optNoOwner).help(s.optNoOwnerHelp)
+            Toggle(s.optMkpathLabel, isOn: $optMkpath).help(s.optMkpathHelp)
+            Toggle(s.optSudoLabel, isOn: $optSudo).help(s.optSudoHelp)
+            HStack(spacing: 6) {
+                Text(s.optChmodLabel)
+                TextField("Du=rwx,go=rx", text: $optChmod).help(s.optChmodHelp)
+            }
+            if direction == .upload {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.optPostLabel).font(.caption).foregroundStyle(.secondary)
+                    TextField(s.optPostPlaceholder, text: $optPostCmd, axis: .vertical)
+                        .lineLimit(1...2)
+                        .help(s.optPostHelp)
+                }
+            }
         }
         .toggleStyle(.checkbox)
         .padding(12)

@@ -47,16 +47,21 @@ func shellQuote(_ arg: String) -> String {
 
 // набор опций rsync (чекбоксы и поля интерфейса)
 struct RsyncOptions {
-    var archive: Bool   // -a
-    var verbose: Bool   // -v
-    var checksum: Bool  // -c
-    var compress: Bool  // -z
-    var progress: Bool  // -P
-    var update: Bool    // -u
-    var delete: Bool    // --delete
-    var stats: Bool     // --stats + -h
-    var dryRun: Bool    // -n (для Preview)
-    var bwlimit: String // --bwlimit=RATE (КБ/с), пусто = без лимита
+    var archive: Bool       // -a
+    var verbose: Bool       // -v
+    var checksum: Bool      // -c
+    var compress: Bool      // -z
+    var progress: Bool      // -P
+    var update: Bool        // -u
+    var delete: Bool        // --delete
+    var stats: Bool         // --stats + -h
+    var dryRun: Bool        // -n (для Preview)
+    var bwlimit: String     // --bwlimit=RATE (КБ/с), пусто = без лимита
+    var noOwnerGroup: Bool  // --no-owner --no-group
+    var mkpath: Bool        // --mkpath (создать недостающие папки назначения)
+    var chmod: String       // --chmod=SPEC, пусто = не добавлять
+    var sudo: Bool          // --rsync-path="sudo rsync"
+    var postCommand: String // && ssh ... '<cmd>' на сервере после отправки (только upload)
 }
 
 // чистая функция сборки команды rsync
@@ -88,6 +93,12 @@ func buildCommand(
     let rate = options.bwlimit.trimmingCharacters(in: .whitespaces)
     if !rate.isEmpty { parts.append("--bwlimit=\(rate)") }
 
+    if options.sudo { parts.append("--rsync-path=\"sudo rsync\"") }
+    if options.noOwnerGroup { parts.append("--no-owner --no-group") }
+    if options.mkpath { parts.append("--mkpath") }
+    let chmod = options.chmod.trimmingCharacters(in: .whitespaces)
+    if !chmod.isEmpty { parts.append("--chmod=\(chmod)") }
+
     let trimmedPort = port.trimmingCharacters(in: .whitespaces)
     if !trimmedPort.isEmpty, trimmedPort != "22" {
         parts.append("-e \"ssh -p \(trimmedPort)\"")
@@ -107,5 +118,15 @@ func buildCommand(
         parts.append(remote)
         parts.append(local)
     }
-    return parts.filter { !$0.isEmpty }.joined(separator: " ")
+    var result = parts.filter { !$0.isEmpty }.joined(separator: " ")
+
+    // пост-команда: выполнить по ssh на сервере после успешной отправки (только upload)
+    let post = options.postCommand.trimmingCharacters(in: .whitespaces)
+    if direction == .upload, !post.isEmpty {
+        var ssh = "ssh"
+        if !trimmedPort.isEmpty, trimmedPort != "22" { ssh += " -p \(trimmedPort)" }
+        ssh += " \(shellQuote(userHost)) \(shellQuote(post))"
+        result += " && \(ssh)"
+    }
+    return result
 }
