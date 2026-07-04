@@ -12,7 +12,7 @@ struct ContentView: View {
     @Environment(\.openURL) private var openURL
 
     // состояние формы сохраняется между запусками
-    @AppStorage("lang") private var lang: Lang = .en
+    @AppStorage("lang") private var lang: Lang = .systemDefault
     @AppStorage("direction") private var direction: Direction = .upload
     @AppStorage("userHost") private var userHost = defaultProfiles.first?.userHost ?? ""
     @AppStorage("port") private var port = defaultProfiles.first?.port ?? "22"

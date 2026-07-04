@@ -4,6 +4,11 @@ enum Lang: String, CaseIterable, Identifiable {
     case en, ru
     var id: String { rawValue }
     var title: String { self == .en ? "English" : "Русский" }
+
+    // язык по умолчанию берём из системной локали (ru -> ru, иначе en); дальше можно переопределить в Настройках
+    static var systemDefault: Lang {
+        Locale.current.language.languageCode?.identifier == "ru" ? .ru : .en
+    }
 }
 
 // все пользовательские строки; выбор языка - в Настройках
