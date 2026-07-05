@@ -38,6 +38,7 @@ struct ContentView: View {
     @State private var password = ""
     @State private var newExclude = ""
     @State private var copied = false
+    @State private var importNotice: String?
     @State private var dropLocal = false
     @State private var startPulse = 0
     @State private var showExcludes = false
@@ -218,10 +219,17 @@ struct ContentView: View {
                 resultBanner
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
+
+            if let importNotice {
+                Label(importNotice, systemImage: "square.and.arrow.down")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
         }
         .padding(12)
         .frame(width: 460)
         .animation(.easeInOut(duration: 0.2), value: showResult)
+        .animation(.easeInOut(duration: 0.2), value: importNotice)
         .onAppear {
             NSApp.activate()
             focus = .server
@@ -284,6 +292,8 @@ struct ContentView: View {
 
             Menu {
                 Button(s.runInTerminalItem) { runInTerminal() }.disabled(!isComplete)
+                Divider()
+                Button(s.importSSHItem) { importFromSSHConfig() }
                 Divider()
                 updateMenuItems
                 Divider()
@@ -525,6 +535,15 @@ struct ContentView: View {
         NSPasteboard.general.setString(command, forType: .string)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+    }
+
+    // подгружает серверы из ~/.ssh/config, добавляя только новые (дедуп по userHost)
+    private func importFromSSHConfig() {
+        let existing = Set(profiles.map(\.userHost))
+        let fresh = readSSHConfigProfiles().filter { !existing.contains($0.userHost) }
+        profiles.append(contentsOf: fresh)
+        importNotice = fresh.isEmpty ? s.importNone : "\(s.importAdded) \(fresh.count)"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { importNotice = nil }
     }
 
     // @Default сохраняет автоматически при мутации массива; обновляем существующий профиль

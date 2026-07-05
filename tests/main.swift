@@ -145,4 +145,32 @@ assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2.0"))
 assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2"))
 assert(!isUpdateAvailable(current: "1.2.0", latestTag: "v1.1.9"))
 
+// parseSSHConfig: реальный хост -> user@host + порт; wildcard и блок без HostName пропускаются
+let sshConfig = """
+    # пример конфига
+    Host prod
+      HostName 203.0.113.7
+      User deploy
+      Port 2222
+
+    Host *
+      ForwardAgent yes
+
+    Host bare-alias
+      User someone
+
+    Host web
+      HostName=example.com
+    """
+let sshProfiles = parseSSHConfig(sshConfig)
+assert(sshProfiles.count == 2, "ожидали 2 профиля, получили \(sshProfiles.count)")
+assert(sshProfiles[0].name == "prod", sshProfiles[0].name)
+assert(sshProfiles[0].userHost == "deploy@203.0.113.7", sshProfiles[0].userHost)
+assert(sshProfiles[0].port == "2222", sshProfiles[0].port)
+assert(sshProfiles[0].remotePath == "~/", sshProfiles[0].remotePath)
+// User нет -> цель без user@, порт по умолчанию 22; значение через '=' тоже разбирается
+assert(sshProfiles[1].name == "web", sshProfiles[1].name)
+assert(sshProfiles[1].userHost == "example.com", sshProfiles[1].userHost)
+assert(sshProfiles[1].port == "22", sshProfiles[1].port)
+
 print("OK: все проверки пройдены")

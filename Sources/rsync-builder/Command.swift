@@ -36,6 +36,58 @@ let defaultExcludes: [ExcludeItem] = [
     ExcludeItem(pattern: "google.json", on: false),
 ]
 
+// разбирает текст ~/.ssh/config в профили: один Host-блок с HostName -> один ServerProfile
+// wildcard-хосты (Host * / ?) и блоки без HostName пропускаем - импортируем только реальные серверы
+// remotePath в ssh config нет, поэтому подставляем "~/"; user отсутствует -> цель без user@
+func parseSSHConfig(_ text: String) -> [ServerProfile] {
+    var result: [ServerProfile] = []
+    var name: String?
+    var hostName = ""
+    var user = ""
+    var port = ""
+
+    func flush() {
+        guard let name, !hostName.isEmpty else { return }
+        let userHost = user.isEmpty ? hostName : "\(user)@\(hostName)"
+        result.append(
+            ServerProfile(
+                name: name, userHost: userHost,
+                port: port.isEmpty ? "22" : port, remotePath: "~/"
+            )
+        )
+    }
+
+    for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        let line = rawLine.trimmingCharacters(in: .whitespaces)
+        if line.isEmpty || line.hasPrefix("#") { continue }
+        // ключ и значение в ssh config разделяются пробелом, табом или '='
+        let parts = line.split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "=" })
+        guard parts.count >= 2 else { continue }
+        switch parts[0].lowercased() {
+        case "host":
+            flush()
+            // из списка алиасов берём первый без wildcard; всё-wildcard -> блок пропустится (name == nil)
+            name = parts.dropFirst().first(where: { !$0.contains("*") && !$0.contains("?") }).map(String.init)
+            hostName = ""
+            user = ""
+            port = ""
+        case "hostname": hostName = String(parts[1])
+        case "user": user = String(parts[1])
+        case "port": port = String(parts[1])
+        default: continue
+        }
+    }
+    flush()
+    return result
+}
+
+// читает ~/.ssh/config (тот же файл, что использует VS Code Remote-SSH); нет файла -> пустой список
+func readSSHConfigProfiles() -> [ServerProfile] {
+    let path = (NSHomeDirectory() as NSString).appendingPathComponent(".ssh/config")
+    guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
+    return parseSSHConfig(text)
+}
+
 // экранирование аргумента для shell: кавычим только при наличии небезопасных символов
 func shellQuote(_ arg: String) -> String {
     let safe = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:@%+=~-")

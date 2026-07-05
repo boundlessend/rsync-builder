@@ -36,6 +36,7 @@ struct L10n {
     let passwordLabel, passwordPlaceholder, passwordHelp: String
     let runInTerminalItem: String
     let runRunning, runDone, runFailed, runClose: String
+    let importSSHItem, importAdded, importNone: String
 
     static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
 
@@ -121,7 +122,10 @@ struct L10n {
         runRunning: "Running…",
         runDone: "Done",
         runFailed: "Failed",
-        runClose: "Close"
+        runClose: "Close",
+        importSSHItem: "Import servers from ~/.ssh/config",
+        importAdded: "Imported servers:",
+        importNone: "No new servers in ~/.ssh/config"
     )
 
     static let ru = L10n(
@@ -206,6 +210,9 @@ struct L10n {
         runRunning: "Выполняется…",
         runDone: "Готово",
         runFailed: "Не удалось",
-        runClose: "Закрыть"
+        runClose: "Закрыть",
+        importSSHItem: "Импорт серверов из ~/.ssh/config",
+        importAdded: "Импортировано серверов:",
+        importNone: "Новых серверов в ~/.ssh/config нет"
     )
 }
