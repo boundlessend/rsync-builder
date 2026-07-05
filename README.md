@@ -30,6 +30,7 @@ copies it to the clipboard, or runs it in a terminal.
 - Lives in the menu bar, opens as a popover panel (no Dock icon, no main window)
 - Upload / download direction with source ⇄ destination labels
 - Server profiles (`user@host`, port, remote path), saved locally and picked from a menu
+- Import existing servers from `~/.ssh/config` (the same file VS Code Remote-SSH uses) via the "•••" menu
 - Drag a file or folder onto the local field to fill its full path
 - Toggle common flags (`-a`, `-v`, `-c`); `--exclude` patterns in a popover
 - Extra options popover: `-z` compress, `-P` progress, `-u` update, `--delete`, `--stats`, `--bwlimit`
