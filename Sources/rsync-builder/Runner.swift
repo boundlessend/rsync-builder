@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 enum RunState: Equatable {
@@ -26,7 +27,14 @@ private func writeAskpass(password: String) -> String {
     return helper
 }
 
-// удаляет хелпер и парный .pw после запуска
+// коробка для хвоста недорезанного UTF-8 символа между чанками пайпа;
+// класс вместо captured var, чтобы не мутировать захваченную переменную из конкурентных замыканий
+// (вызовы readability/termination handler-ов фактически последовательны, гонки нет)
+private final class ByteCarry: @unchecked Sendable {
+    var data = Data()
+}
+
+// удаляет хелпер и парный .pw после запуска (идемпотентно - зовётся и из terminationHandler, и из cancel)
 private func cleanupAskpass(helper: String) {
     guard !helper.isEmpty, helper.hasSuffix(".sh") else { return }
     let fm = FileManager.default
@@ -43,7 +51,18 @@ final class CommandRunner: ObservableObject {
     @Published private(set) var output = ""
     private(set) var successMode: SuccessMode = .toast
     private var process: Process?
+    private var askpassHelper = ""
     private var generation = 0
+
+    // выход из приложения посреди запуска: гасим процесс и подчищаем askpass-файлы,
+    // не дожидаясь terminationHandler, который может уже не успеть
+    init() {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancel() }
+        }
+    }
 
     func run(command: String, port: String, password: String, successMode: SuccessMode) {
         // повторный запуск: гасим прошлый процесс, чтобы не наслаивался
@@ -56,6 +75,7 @@ final class CommandRunner: ObservableObject {
 
         let (cmd, rsh) = runTransport(command: command, port: port)
         let askpass = password.isEmpty ? "" : writeAskpass(password: password)
+        askpassHelper = askpass
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/sh")
         proc.arguments = ["-c", cmd]
@@ -64,28 +84,30 @@ final class CommandRunner: ObservableObject {
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe
+        // чанк может разрезать многобайтовый символ (кириллица в именах файлов) -
+        // недорезанный хвост несём в следующий чанк
+        let carry = ByteCarry()
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.output += text } }
+            let chunk = handle.availableData
+            guard !chunk.isEmpty else { return }
+            let (text, rest) = utf8SplitValidPrefix(carry.data + chunk)
+            carry.data = rest
+            guard !text.isEmpty else { return }
+            // DispatchQueue.main, не Task: только serial queue гарантирует порядок чанков
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.append(text) } }
         }
         proc.terminationHandler = { [weak self] finished in
+            // снимаем handler и дочитываем остаток - иначе хвост вывода быстрого процесса теряется
             pipe.fileHandleForReading.readabilityHandler = nil
+            let tail = ((try? pipe.fileHandleForReading.readToEnd()) ?? nil) ?? Data()
+            let text = String(decoding: carry.data + tail, as: UTF8.self)
             cleanupAskpass(helper: askpass)
             let status = finished.terminationStatus
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self, self.generation == gen else { return }  // отменён или запущен новый - игнор
-                    self.state = .finished(status)
-                    self.process = nil
-                    // успех обычного Run: короткая галочка-уведомление, затем само гаснет
-                    if status == 0, self.successMode == .toast {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            MainActor.assumeIsolated {
-                                if self.generation == gen, self.state == .finished(0) { self.dismiss() }
-                            }
-                        }
-                    }
+                    if !text.isEmpty { self.append(text) }
+                    self.finish(status: status, gen: gen)
                 }
             }
         }
@@ -94,8 +116,29 @@ final class CommandRunner: ObservableObject {
             process = proc
         } catch {
             cleanupAskpass(helper: askpass)
+            askpassHelper = ""
             output = error.localizedDescription
             state = .finished(127)
+        }
+    }
+
+    // вывод копится ограниченно, чтобы большой -v перенос не раздувал память и рендер баннера
+    // ponytail: жёсткий cap с потерей начала; полный вывод - через "Запустить в терминале"
+    private func append(_ text: String) {
+        output = String((output + text).suffix(64_000))
+    }
+
+    private func finish(status: Int32, gen: Int) {
+        state = .finished(status)
+        process = nil
+        askpassHelper = ""
+        // успех обычного Run: короткая галочка-уведомление, затем само гаснет
+        if status == 0, successMode == .toast {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                MainActor.assumeIsolated {
+                    if self.generation == gen, self.state == .finished(0) { self.dismiss() }
+                }
+            }
         }
     }
 
@@ -104,6 +147,8 @@ final class CommandRunner: ObservableObject {
         generation += 1  // инвалидирует terminationHandler, чтобы не показать ложную "ошибку"
         process?.terminate()
         process = nil
+        cleanupAskpass(helper: askpassHelper)
+        askpassHelper = ""
         state = .idle
         output = ""
     }

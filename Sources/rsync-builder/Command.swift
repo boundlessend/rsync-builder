@@ -161,7 +161,10 @@ func buildCommand(
     }
 
     let local = shellQuote(localPath)
-    let remote = shellQuote("\(userHost):\(remotePath)")
+    // пробел в удалённом пути экранируем обратным слэшем: локальные кавычки до удалённого shell
+    // не доезжают, и он режет путь по словам ("No such file or directory")
+    // ponytail: только пробел; прочие спецсимволы удалённого shell в пути - на совести пользователя
+    let remote = shellQuote("\(userHost):\(remotePath.replacingOccurrences(of: " ", with: "\\ "))")
     switch direction {
     case .upload:
         parts.append(local)
@@ -185,6 +188,8 @@ func buildCommand(
 
 // подготовка команды к запуску через Process (без TTY): порт и авто-приём нового host key
 // переносятся в RSYNC_RSH, дублирующий -e убирается, чтобы транспорт был единым для 22 и нестандартного порта
+// ponytail: строковое удаление "-e ..." завязано на точный формат buildCommand;
+// меняешь формат -e - обнови и это (тест rt1 в tests/main.swift ловит рассинхрон)
 func runTransport(command: String, port: String) -> (command: String, rsh: String) {
     let p = port.trimmingCharacters(in: .whitespaces)
     // NumberOfPasswordPrompts=1 - не долбить сервер одним и тем же паролем трижды при ошибке
@@ -213,6 +218,19 @@ func runEnvironment(base: [String: String], rsh: String, askpass: String) -> [St
         env["DISPLAY"] = env["DISPLAY"] ?? ":0"
     }
     return env
+}
+
+// делит байты потока на валидный UTF-8 префикс и хвост (начало недорезанного многобайтового
+// символа, до 3 байт) - хвост склеивается со следующим чанком, чтобы не терять кириллицу в выводе
+func utf8SplitValidPrefix(_ data: Data) -> (text: String, rest: Data) {
+    if let s = String(data: data, encoding: .utf8) { return (s, Data()) }
+    for cut in 1...3 where cut <= data.count {
+        if let s = String(data: data.prefix(data.count - cut), encoding: .utf8) {
+            return (s, data.suffix(cut))
+        }
+    }
+    // вовсе не UTF-8: декодируем с заменами, чтобы хвост не рос бесконечно
+    return (String(decoding: data, as: UTF8.self), Data())
 }
 
 // сравнение версий: true если latestTag строго новее current (числовое по компонентам, не лексическое)

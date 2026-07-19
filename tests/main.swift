@@ -48,6 +48,13 @@ let injected = buildCommand(
 )
 assert(injected == "rsync -avc --exclude='a b' '/tmp/x; rm -rf ~' user@example.com:~/x/", injected)
 
+// пробел в удалённом пути -> экранируется для удалённого shell (кавычек ему мало)
+let remoteSpace = buildCommand(
+    direction: .upload, options: avc, port: "22", excludes: [],
+    localPath: "/Users/me/x", userHost: "user@example.com", remotePath: "~/my dir/"
+)
+assert(remoteSpace == "rsync -avc /Users/me/x 'user@example.com:~/my\\ dir/'", remoteSpace)
+
 // сжатие + прогресс + update -> кластер флагов
 var tuned = avc
 tuned.compress = true
@@ -144,6 +151,21 @@ assert(isUpdateAvailable(current: "1.9", latestTag: "v1.10.0"))  // 10 > 9 чи�
 assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2.0"))
 assert(!isUpdateAvailable(current: "1.2", latestTag: "v1.2"))
 assert(!isUpdateAvailable(current: "1.2.0", latestTag: "v1.1.9"))
+
+// utf8SplitValidPrefix: целые данные -> весь текст без хвоста
+let utfFull = utf8SplitValidPrefix(Data("привет".utf8))
+assert(utfFull.text == "привет" && utfFull.rest.isEmpty, utfFull.text)
+// разрез посреди двухбайтового символа -> недорезанный байт уходит в хвост
+var utfCut = Data("привет".utf8)
+let utfLastByte = utfCut.removeLast()
+let utfSplit = utf8SplitValidPrefix(utfCut)
+assert(utfSplit.text == "приве", utfSplit.text)
+assert(utfSplit.rest.count == 1, "\(utfSplit.rest.count)")
+// хвост + следующий чанк восстанавливают символ
+assert(utf8SplitValidPrefix(utfSplit.rest + Data([utfLastByte])).text == "т")
+// не-UTF-8 мусор -> декод с заменами, хвост пуст (не копится бесконечно)
+let utfJunk = utf8SplitValidPrefix(Data([0xFF, 0xFE, 0xFD, 0xFC]))
+assert(utfJunk.rest.isEmpty && !utfJunk.text.isEmpty, "junk must flush")
 
 // parseSSHConfig: реальный хост -> user@host + порт; wildcard и блок без HostName пропускаются
 let sshConfig = """

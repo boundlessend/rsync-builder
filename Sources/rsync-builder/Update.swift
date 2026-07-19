@@ -28,6 +28,14 @@ enum UpdateError: LocalizedError {
     case badStatus(Int)
     case rateLimited
 
+    // 4xx и rate limit повтором через полсекунды не лечатся - пробрасываем сразу
+    var retriable: Bool {
+        switch self {
+        case .rateLimited: return false
+        case .badStatus(let code): return !(400..<500).contains(code)
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .badStatus(let code): return "GitHub API returned status \(code)"
@@ -66,7 +74,7 @@ final class UpdateChecker: ObservableObject {
         }
     }
 
-    // до 3 попыток, затем пробрасываем последнюю ошибку
+    // до 3 попыток для временных сбоев (сеть, 5xx), затем пробрасываем последнюю ошибку
     private func fetchLatest() async throws -> GitHubRelease {
         guard let url = URL(string: releaseURLString) else { throw UpdateError.badStatus(-1) }
         var req = URLRequest(url: url)
@@ -81,6 +89,7 @@ final class UpdateChecker: ObservableObject {
                 guard http.statusCode == 200 else { throw UpdateError.badStatus(http.statusCode) }
                 return try JSONDecoder().decode(GitHubRelease.self, from: data)
             } catch {
+                if let e = error as? UpdateError, !e.retriable { throw e }
                 lastError = error
                 if attempt < 3 { try? await Task.sleep(nanoseconds: 500_000_000) }
             }

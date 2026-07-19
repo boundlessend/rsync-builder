@@ -13,10 +13,17 @@ final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
 
     func run(command: String) {
         ensureWindow()
+        // заголовок обновляем на каждый показ: язык могли сменить после создания окна
+        window?.title = L10n.of(currentLang).terminalTitle
         startShellIfNeeded()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate()
         view.send(txt: command + "\n")
+    }
+
+    // тот же ключ, что у @AppStorage("lang"); ключа нет -> системная локаль, как в остальном приложении
+    private var currentLang: Lang {
+        UserDefaults.standard.string(forKey: "lang").flatMap(Lang.init(rawValue:)) ?? .system
     }
 
     private func startShellIfNeeded() {
@@ -35,8 +42,6 @@ final class TerminalWindow: ObservableObject, LocalProcessTerminalViewDelegate {
             backing: .buffered,
             defer: false
         )
-        let lang = Lang(rawValue: UserDefaults.standard.string(forKey: "lang") ?? "en") ?? .en
-        w.title = L10n.of(lang).terminalTitle
         w.contentView = view
         w.isReleasedWhenClosed = false
         w.center()
