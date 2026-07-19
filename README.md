@@ -39,7 +39,10 @@ copies it to the clipboard, or runs it in a terminal.
 - Preview button: a dry run (`-n`) to see what would transfer before doing it
 - Every toggle has a tooltip explaining what the flag does
 - Live command with shell-safe quoting of paths
-- Optional SSH password field (kept in memory only) so a run needs no terminal; leave empty for key-based login
+- Optional SSH password field so a run needs no terminal; leave empty for key-based login.
+  The password is held in memory and passed to ssh via a transient 0600 temp file that exists
+  only for the duration of the run. The first connection to an unknown server auto-accepts
+  its host key (`StrictHostKeyChecking=accept-new`); use "Run in terminal" to verify it manually
 - Run and Preview execute inline: a spinner in the button, a brief success check, or an in-panel error banner with the output
 - Copy to clipboard; a "Run in terminal" fallback lives in the "•••" menu for 2FA / host-key confirmation
 - Interface language follows your system by default (English / Русский), switchable in Settings
