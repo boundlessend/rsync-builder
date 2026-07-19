@@ -26,8 +26,8 @@ jobs:
 
   build:
     name: release build
-    # ВНИМАНИЕ: сборка приложения требует macOS 26 SDK (нативный Liquid Glass).
-    # macos-latest подойдёт, когда GitHub предоставит раннер с macOS 26; иначе self-hosted.
+    # страховка "main всегда собирается"; полная релизная сборка - в release.yml на теге.
+    # требует macOS 26 SDK (нативный Liquid Glass) - на macos-latest он есть
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
