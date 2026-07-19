@@ -12,7 +12,7 @@ struct ContentView: View {
     @Environment(\.openURL) private var openURL
 
     // состояние формы сохраняется между запусками
-    @AppStorage("lang") private var lang: Lang = .systemDefault
+    @AppStorage("lang") private var lang: Lang = .system
     @AppStorage("direction") private var direction: Direction = .upload
     @AppStorage("userHost") private var userHost = defaultProfiles.first?.userHost ?? ""
     @AppStorage("port") private var port = defaultProfiles.first?.port ?? "22"
@@ -115,6 +115,14 @@ struct ContentView: View {
                             remotePath = p.remotePath
                         }
                     }
+                    if !profiles.isEmpty {
+                        Divider()
+                        Menu(s.deleteProfileItem) {
+                            ForEach(profiles) { p in
+                                Button(p.name) { profiles.removeAll { $0.id == p.id } }
+                            }
+                        }
+                    }
                 } label: {
                     Image(systemName: "chevron.down")
                 }
@@ -122,7 +130,9 @@ struct ContentView: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .accessibilityLabel(s.serverProfiles)
-                Button(s.saveButton) { saveCurrentAsProfile() }.help(s.saveHelp)
+                Button(s.saveButton) { saveCurrentAsProfile() }
+                    .disabled(userHost.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .help(s.saveHelp)
             }
 
             HStack(spacing: 8) {
@@ -132,8 +142,10 @@ struct ContentView: View {
                     .focused($focus, equals: .port)
                     .accessibilityLabel(s.portLabel)
                     .onChange(of: port) { _, new in
-                        let digits = new.filter(\.isNumber)
-                        if digits != new { port = digits }
+                        // только цифры и не больше 65535 (валидный диапазон TCP-портов)
+                        let digits = String(new.filter(\.isNumber).prefix(5))
+                        let clamped = Int(digits).map { String(min($0, 65_535)) } ?? digits
+                        if clamped != new { port = clamped }
                     }
                 Text(s.passwordLabel).foregroundStyle(.secondary)
                 SecureField(s.passwordPlaceholder, text: $password)
@@ -269,6 +281,7 @@ struct ContentView: View {
                 Label(copied ? s.copied : s.copy, systemImage: copied ? "checkmark" : "doc.on.doc")
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(!isComplete)
             .help(s.copyHelp)
             .changeEffect(
                 .spray(origin: UnitPoint(x: 0.5, y: 1)) {
@@ -318,7 +331,19 @@ struct ContentView: View {
                 alignment: .leading, spacing: 4
             ) {
                 ForEach($excludes) { $ex in
-                    Toggle(ex.pattern, isOn: $ex.on).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Toggle(ex.pattern, isOn: $ex.on).lineLimit(1)
+                        Spacer(minLength: 0)
+                        Button {
+                            excludes.removeAll { $0.id == ex.id }
+                        } label: {
+                            Image(systemName: "xmark").font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tertiary)
+                        .help(s.removeExcludeHelp)
+                        .accessibilityLabel(s.removeExcludeHelp)
+                    }
                 }
             }
             .toggleStyle(.checkbox)
@@ -537,7 +562,8 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
 
-    // подгружает серверы из ~/.ssh/config, добавляя только новые (дедуп по userHost)
+    // подгружает серверы из ~/.ssh/config, добавляя только новые; дедуп по userHost,
+    // а не по паре хост+путь как в Save: у ssh config пути нет, remotePath всегда "~/"
     private func importFromSSHConfig() {
         let existing = Set(profiles.map(\.userHost))
         let fresh = readSSHConfigProfiles().filter { !existing.contains($0.userHost) }
@@ -549,7 +575,11 @@ struct ContentView: View {
     // @Default сохраняет автоматически при мутации массива; обновляем существующий профиль
     // только при совпадении и хоста, и пути - иначе добавляем новый, чтобы не затирать чужой путь
     private func saveCurrentAsProfile() {
-        let name = userHost.split(separator: "@").first.map(String.init) ?? userHost
+        var name = userHost.split(separator: "@").first.map(String.init) ?? userHost
+        // тёзка (тот же user на другом сервере/пути) получает суффикс-путь, чтобы в меню не было близнецов
+        if profiles.contains(where: { $0.name == name && ($0.userHost != userHost || $0.remotePath != remotePath) }) {
+            name = "\(name) · \(remotePath)"
+        }
         let profile = ServerProfile(name: name, userHost: userHost, port: port, remotePath: remotePath)
         if let idx = profiles.firstIndex(where: { $0.userHost == userHost && $0.remotePath == remotePath }) {
             profiles[idx] = profile

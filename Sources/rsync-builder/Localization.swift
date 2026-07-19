@@ -1,26 +1,34 @@
 import Foundation
 
 enum Lang: String, CaseIterable, Identifiable {
-    case en, ru
+    case system, en, ru
     var id: String { rawValue }
-    var title: String { self == .en ? "English" : "Русский" }
 
-    // язык по умолчанию берём из системной локали (ru -> ru, иначе en); дальше можно переопределить в Настройках
-    static var systemDefault: Lang {
-        Locale.current.language.languageCode?.identifier == "ru" ? .ru : .en
+    var title: String {
+        switch self {
+        case .system: return "System"
+        case .en: return "English"
+        case .ru: return "Русский"
+        }
+    }
+
+    // system разрешается по текущей локали при каждом чтении (ru -> ru, иначе en)
+    var resolved: Lang {
+        guard self == .system else { return self }
+        return Locale.current.language.languageCode?.identifier == "ru" ? .ru : .en
     }
 }
 
 // все пользовательские строки; выбор языка - в Настройках
 struct L10n {
     let upload, download: String
-    let serverProfiles, saveButton, saveHelp, portPlaceholder, portLabel: String
+    let serverProfiles, saveButton, saveHelp, portLabel, deleteProfileItem: String
     let sourceLocal, destLocal, destServer, sourceServer: String
     let localPlaceholder, localHelp, browse, browseHelp, localTip: String
     let remotePlaceholder, remoteHelp: String
-    let flags, flagAHelp, flagVHelp, flagCHelp: String
+    let flagAHelp, flagVHelp, flagCHelp: String
     let flagAA11y, flagVA11y, flagCA11y: String
-    let excludeSection, excludePlaceholder, addExcludeHelp: String
+    let excludeSection, excludePlaceholder, addExcludeHelp, removeExcludeHelp: String
     let incompleteWarning: String
     let copy, copied, copyHelp, run, runHelp: String
     let terminalTitle, settingsLanguage, settingsItem, quitItem: String
@@ -38,7 +46,7 @@ struct L10n {
     let runRunning, runDone, runFailed, runClose: String
     let importSSHItem, importAdded, importNone: String
 
-    static func of(_ lang: Lang) -> L10n { lang == .ru ? ru : en }
+    static func of(_ lang: Lang) -> L10n { lang.resolved == .ru ? ru : en }
 
     static let en = L10n(
         upload: "Upload",
@@ -46,8 +54,8 @@ struct L10n {
         serverProfiles: "Server profiles",
         saveButton: "Save",
         saveHelp: "Save the current server as a profile",
-        portPlaceholder: "SSH port",
         portLabel: "Port",
+        deleteProfileItem: "Delete profile",
         sourceLocal: "Source · local",
         destLocal: "Destination · local",
         destServer: "Destination · server",
@@ -59,7 +67,6 @@ struct L10n {
         localTip: "Tip: you can drag a file or folder here from Finder",
         remotePlaceholder: "Path on the server, e.g. ~/app/",
         remoteHelp: "Path on the remote machine. A trailing '/' means the contents, without it - the folder itself",
-        flags: "Flags",
         flagAHelp: "archive mode: recursive, preserves permissions, timestamps and symlinks",
         flagVHelp: "verbose - show each transferred file",
         flagCHelp: "compare by checksum instead of size and time",
@@ -69,6 +76,7 @@ struct L10n {
         excludeSection: "Exclude",
         excludePlaceholder: "custom exclude",
         addExcludeHelp: "add exclude",
+        removeExcludeHelp: "remove exclude",
         incompleteWarning: "Fill in the server and both paths",
         copy: "Copy",
         copied: "Copied",
@@ -105,7 +113,8 @@ struct L10n {
         optChmodLabel: "chmod",
         optChmodHelp: "set permissions on transferred files, e.g. Du=rwx,go=rx; empty = leave as is",
         optSudoLabel: "sudo on server",
-        optSudoHelp: "run rsync via sudo on the remote (--rsync-path=\"sudo rsync\") to write into system paths",
+        optSudoHelp:
+            "run rsync via sudo on the remote (--rsync-path=\"sudo rsync\") to write into system paths; needs passwordless sudo (NOPASSWD) on the server, otherwise the run hangs without a TTY",
         optPostLabel: "post-sync command",
         optPostHelp: "after a successful upload, run this over ssh on the server (e.g. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
@@ -117,7 +126,8 @@ struct L10n {
         updateFailed: "Check failed:",
         passwordLabel: "Password",
         passwordPlaceholder: "empty if using SSH keys",
-        passwordHelp: "SSH password. Kept in memory only, never saved. Leave empty for key-based login",
+        passwordHelp:
+            "SSH password. Held in memory; during a run it is passed to ssh via a temporary 0600 file, deleted right after. Leave empty for key-based login",
         runInTerminalItem: "Run in terminal",
         runRunning: "Running…",
         runDone: "Done",
@@ -134,8 +144,8 @@ struct L10n {
         serverProfiles: "Профили серверов",
         saveButton: "Сохранить",
         saveHelp: "сохранить текущий сервер как профиль",
-        portPlaceholder: "порт SSH",
         portLabel: "Порт",
+        deleteProfileItem: "Удалить профиль",
         sourceLocal: "Источник · локально",
         destLocal: "Приём · локально",
         destServer: "Приём · на сервере",
@@ -147,7 +157,6 @@ struct L10n {
         localTip: "подсказка: сюда можно перетащить файл или папку из Finder",
         remotePlaceholder: "путь на сервере, напр. ~/app/",
         remoteHelp: "путь на удалённой машине. С '/' в конце - содержимое, без - сама папка",
-        flags: "Флаги",
         flagAHelp: "архивный режим: рекурсивно, сохраняет права, время и симлинки",
         flagVHelp: "подробный вывод - показывать каждый передаваемый файл",
         flagCHelp: "сверять по контрольной сумме, а не по размеру и времени",
@@ -157,6 +166,7 @@ struct L10n {
         excludeSection: "Исключить",
         excludePlaceholder: "своё исключение",
         addExcludeHelp: "добавить исключение",
+        removeExcludeHelp: "удалить исключение",
         incompleteWarning: "заполни сервер и оба пути",
         copy: "Копировать",
         copied: "Скопировано",
@@ -193,7 +203,8 @@ struct L10n {
         optChmodLabel: "права",
         optChmodHelp: "выставить права на переданные файлы, напр. Du=rwx,go=rx; пусто = не менять",
         optSudoLabel: "sudo на сервере",
-        optSudoHelp: "запускать rsync через sudo на сервере (--rsync-path=\"sudo rsync\"), чтобы писать в системные пути",
+        optSudoHelp:
+            "запускать rsync через sudo на сервере (--rsync-path=\"sudo rsync\"), чтобы писать в системные пути; нужен sudo без пароля (NOPASSWD), иначе запуск без TTY зависнет",
         optPostLabel: "пост-команда",
         optPostHelp: "после успешной отправки выполнить по ssh на сервере (напр. cd ~/app && docker compose up -d)",
         optPostPlaceholder: "cd ~/app && docker compose up -d",
@@ -205,7 +216,8 @@ struct L10n {
         updateFailed: "Не удалось проверить:",
         passwordLabel: "Пароль",
         passwordPlaceholder: "пусто при входе по SSH-ключу",
-        passwordHelp: "пароль SSH. Хранится только в памяти, не сохраняется. Пусто = вход по ключу",
+        passwordHelp:
+            "пароль SSH. Держится в памяти; на время запуска передаётся ssh через временный 0600-файл, который сразу удаляется. Пусто = вход по ключу",
         runInTerminalItem: "Запустить в терминале",
         runRunning: "Выполняется…",
         runDone: "Готово",

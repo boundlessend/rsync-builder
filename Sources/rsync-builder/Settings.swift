@@ -2,7 +2,7 @@ import SwiftUI
 
 // окно Настроек (⌘,): язык интерфейса (проверка обновлений - в меню «•••»)
 struct SettingsView: View {
-    @AppStorage("lang") private var lang: Lang = .systemDefault
+    @AppStorage("lang") private var lang: Lang = .system
 
     private var s: L10n { .of(lang) }
 
